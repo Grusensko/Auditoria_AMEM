@@ -221,18 +221,25 @@ def show_dashboard():
     if not default_mes.startswith("2026"):
         default_mes = "2026-01"
         
-    if "prev_global_mes" not in st.session_state or st.session_state.prev_global_mes != st.session_state.mes_trabajo:
+    # Inicializar el rango en session_state si no existe
+    if "dashboard_range" not in st.session_state:
+        st.session_state.dashboard_range = (default_mes, default_mes)
         st.session_state.prev_global_mes = st.session_state.mes_trabajo
-        st.session_state.dashboard_period_slider = (default_mes, default_mes)
+        
+    # Si cambió el mes de trabajo global, resetear el slider a ese mes
+    if st.session_state.prev_global_mes != st.session_state.mes_trabajo:
+        st.session_state.prev_global_mes = st.session_state.mes_trabajo
+        st.session_state.dashboard_range = (default_mes, default_mes)
         
     st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True)
     rango_seleccionado = st.select_slider(
         "Rango de Períodos para el Dashboard (Ingresos)",
         options=slider_months,
-        format_func=lambda x: slider_labels.get(x, x),
-        key="dashboard_period_slider"
+        value=st.session_state.dashboard_range,
+        format_func=lambda x: slider_labels.get(x, x)
     )
     
+    st.session_state.dashboard_range = rango_seleccionado
     start_mes, end_mes = rango_seleccionado
     
     if start_mes == end_mes:
