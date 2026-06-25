@@ -208,23 +208,26 @@ if not st.session_state.authenticated:
 
 # PAGE 1: DASHBOARD
 def show_dashboard():
-    # Slider de rango de períodos
+    # Slider de rango de períodos limitado al año 2026
     slider_months = [
-        "2025-10", "2025-11", "2025-12",
         "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", 
         "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"
     ]
     slider_labels = {m: format_period(m) for m in slider_months}
     
     # Sincronizar con el período global seleccionado en la cabecera
+    # Si el mes global es de 2025 (ej: 2025-12), el slider se inicializa por defecto en 2026-01
     default_mes = st.session_state.mes_trabajo
-    if "prev_global_mes" not in st.session_state or st.session_state.prev_global_mes != default_mes:
-        st.session_state.prev_global_mes = default_mes
+    if not default_mes.startswith("2026"):
+        default_mes = "2026-01"
+        
+    if "prev_global_mes" not in st.session_state or st.session_state.prev_global_mes != st.session_state.mes_trabajo:
+        st.session_state.prev_global_mes = st.session_state.mes_trabajo
         st.session_state.dashboard_period_slider = (default_mes, default_mes)
         
     st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True)
     rango_seleccionado = st.select_slider(
-        "Rango de Períodos para el Dashboard",
+        "Rango de Períodos para el Dashboard (Ingresos)",
         options=slider_months,
         format_func=lambda x: slider_labels.get(x, x),
         key="dashboard_period_slider"
@@ -237,105 +240,138 @@ def show_dashboard():
     else:
         periodo_desc = f"{format_period(start_mes)} a {format_period(end_mes)}"
         
-    st.subheader(f"Dashboard de Auditoría — {periodo_desc}")
+    st.subheader(f"Dashboard de Auditoría de Ingresos — {periodo_desc}")
     
-    # Consultar datos para métricas generales
+    # Consultar datos en la base de datos
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Total Prestaciones
-    cursor.execute("SELECT SUM(monto), COUNT(*) FROM prestaciones WHERE mes_auditoria >= ? AND mes_auditoria <= ?", (start_mes, end_mes))
-    res_p = cursor.fetchone()
-    total_prestado = res_p[0] if res_p[0] else 0.0
-    cant_prestaciones = res_p[1] if res_p[1] else 0
-    
-    # 2. Total Facturado AFIP
-    cursor.execute("SELECT SUM(monto_total) FROM facturas WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND estado = 'ACTIVO'", (start_mes, end_mes))
-    res_f = cursor.fetchone()
-    total_facturado = res_f[0] if res_f[0] else 0.0
-    
-    # 3. Total Cobrado Banco
-    cursor.execute("SELECT SUM(credito) FROM movimientos_banco WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0", (start_mes, end_mes))
-    res_b = cursor.fetchone()
-    total_cobrado = res_b[0] if res_b[0] else 0.0
-    
-    # 4. Estados de conciliaciones
+    # 1. Total Ingresado (Banco Supervielle) en el rango seleccionado
     cursor.execute("""
-        SELECT estado_final, COUNT(*), SUM(p.monto) 
-        FROM conciliaciones c 
-        JOIN prestaciones p ON c.prestacion_id = p.id
-        WHERE c.mes_auditoria >= ? AND c.mes_auditoria <= ?
-        GROUP BY estado_final
+        SELECT SUM(credito), COUNT(*) 
+        FROM movimientos_banco 
+        WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0
     """, (start_mes, end_mes))
-    estados_res = cursor.fetchall()
+    res_b = cursor.fetchone()
+    total_ingresado = res_b[0] if res_b[0] else 0.0
+    cant_ingresos = res_b[1] if res_b[1] else 0
     
+    # 2. Ingresos Conciliados (Match)
+    # Sumamos el crédito de los depósitos del período que estén conciliados
+    cursor.execute("""
+        SELECT SUM(b.credito), COUNT(distinct b.id)
+        FROM movimientos_banco b
+        JOIN conciliaciones c ON b.id = c.movimiento_banco_id
+        WHERE b.mes_auditoria >= ? AND b.mes_auditoria <= ? 
+          AND c.estado_final = 'CONCILIADO'
+    """, (start_mes, end_mes))
+    res_c = cursor.fetchone()
+    ingresos_conciliados = res_c[0] if res_c[0] else 0.0
+    cant_conciliados = res_c[1] if res_c[1] else 0
+    
+    # 3. Ingresos con Discrepancia
+    cursor.execute("""
+        SELECT SUM(b.credito), COUNT(distinct b.id)
+        FROM movimientos_banco b
+        JOIN conciliaciones c ON b.id = c.movimiento_banco_id
+        WHERE b.mes_auditoria >= ? AND b.mes_auditoria <= ? 
+          AND c.estado_final = 'DISCREPANCIA'
+    """, (start_mes, end_mes))
+    res_d = cursor.fetchone()
+    ingresos_discrepantes = res_d[0] if res_d[0] else 0.0
+    cant_discrepantes = res_d[1] if res_d[1] else 0
+    
+    # 4. Ingresos Sin Identificar (Movimientos de banco no enlazados a ninguna conciliación)
+    cursor.execute("""
+        SELECT SUM(credito), COUNT(*)
+        FROM movimientos_banco
+        WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0
+          AND id NOT IN (SELECT DISTINCT movimiento_banco_id FROM conciliaciones WHERE movimiento_banco_id IS NOT NULL)
+    """, (start_mes, end_mes))
+    res_s = cursor.fetchone()
+    ingresos_sin_identificar = res_s[0] if res_s[0] else 0.0
+    cant_sin_identificar = res_s[1] if res_s[1] else 0
+    
+    # 5. Prestaciones y Facturas en el mismo período (para referencia y panel de Deuda)
+    # Pendientes de Facturación (en AFIP) acumulado hasta end_mes
+    cursor.execute("""
+        SELECT SUM(monto), COUNT(*) 
+        FROM prestaciones 
+        WHERE mes_auditoria <= ? 
+          AND estado_conciliacion = 'PENDIENTE_FACTURA'
+    """, (end_mes,))
+    res_pf = cursor.fetchone()
+    deuda_pendiente_facturar = res_pf[0] if res_pf[0] else 0.0
+    cant_pendiente_facturar = res_pf[1] if res_pf[1] else 0
+    
+    # Pendientes de Cobro (en Banco) acumulado hasta end_mes
+    cursor.execute("""
+        SELECT SUM(monto), COUNT(*) 
+        FROM prestaciones 
+        WHERE mes_auditoria <= ? 
+          AND estado_conciliacion = 'PENDIENTE_COBRO'
+    """, (end_mes,))
+    res_pc = cursor.fetchone()
+    deuda_pendiente_cobrar = res_pc[0] if res_pc[0] else 0.0
+    cant_pendiente_cobrar = res_pc[1] if res_pc[1] else 0
+
     conn.close()
     
-    # Diccionario de conteos
-    estado_counts = {'CONCILIADO': 0, 'PENDIENTE_FACTURA': 0, 'PENDIENTE_COBRO': 0, 'DISCREPANCIA': 0}
-    estado_montos = {'CONCILIADO': 0.0, 'PENDIENTE_FACTURA': 0.0, 'PENDIENTE_COBRO': 0.0, 'DISCREPANCIA': 0.0}
-    
-    for row in estados_res:
-        est = row[0]
-        if est in estado_counts:
-            estado_counts[est] = row[1]
-            estado_montos[est] = row[2] if row[2] else 0.0
-            
     # Mostrar KPIs en filas con estética SaaS y efectos hover
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-title">Total Prestado (Gestión)</div>
-            <div class="metric-value">${total_prestado:,.2f}</div>
-            <div class="metric-sub" style="color: gray;">{cant_prestaciones} prestaciones registradas</div>
+            <div class="metric-title">Total Ingresado (Banco)</div>
+            <div class="metric-value">${total_ingresado:,.2f}</div>
+            <div class="metric-sub" style="color: gray;">{cant_ingresos} depósitos registrados</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col2:
         st.markdown(f"""
         <div class="metric-card success">
-            <div class="metric-title">Conciliado (Match)</div>
-            <div class="metric-value" style="color: #10B981;">${estado_montos['CONCILIADO']:,.2f}</div>
-            <div class="metric-sub" style="color: #10B981; font-weight: 600;">{estado_counts['CONCILIADO']} transacciones ok</div>
+            <div class="metric-title">Ingresos Conciliados (Match)</div>
+            <div class="metric-value" style="color: #10B981;">${ingresos_conciliados:,.2f}</div>
+            <div class="metric-sub" style="color: #10B981; font-weight: 600;">{cant_conciliados} cobros ok (cruce histórico)</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col3:
         st.markdown(f"""
         <div class="metric-card warning">
-            <div class="metric-title">Pendiente Liquidación</div>
-            <div class="metric-value" style="color: #F59E0B;">${(estado_montos['PENDIENTE_FACTURA'] + estado_montos['PENDIENTE_COBRO']):,.2f}</div>
-            <div class="metric-sub" style="color: #F59E0B; font-weight: 600;">Facturas/Cobros pendientes</div>
+            <div class="metric-title">Ingresos Sin Identificar</div>
+            <div class="metric-value" style="color: #F59E0B;">${ingresos_sin_identificar:,.2f}</div>
+            <div class="metric-sub" style="color: #F59E0B; font-weight: 600;">{cant_sin_identificar} cobros sin asociar en banco</div>
         </div>
         """, unsafe_allow_html=True)
         
     with col4:
         st.markdown(f"""
         <div class="metric-card danger">
-            <div class="metric-title">Discrepancias</div>
-            <div class="metric-value" style="color: #EF4444;">${estado_montos['DISCREPANCIA']:,.2f}</div>
-            <div class="metric-sub" style="color: #EF4444; font-weight: 600;">{estado_counts['DISCREPANCIA']} inconsistencias detectadas</div>
+            <div class="metric-title">Discrepancias de Monto</div>
+            <div class="metric-value" style="color: #EF4444;">${ingresos_discrepantes:,.2f}</div>
+            <div class="metric-sub" style="color: #EF4444; font-weight: 600;">{cant_discrepantes} inconsistencias de pago</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("---")
     
     # Gráficos de Plotly Interactivos
-    st.markdown("### Estado General de la Auditoría")
+    st.markdown("### Estado General de la Caja")
     
     col_chart_l, col_chart_r = st.columns([1.3, 1.7])
     
     with col_chart_l:
-        # Calcular porcentaje de conciliación
-        porcentaje_conciliado = (estado_montos['CONCILIADO'] / total_prestado * 100) if total_prestado > 0 else 0.0
+        # Calcular porcentaje de ingresos conciliados
+        porcentaje_conciliado = (ingresos_conciliados / total_ingresado * 100) if total_ingresado > 0 else 0.0
         
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
             value = porcentaje_conciliado,
             domain = {'x': [0, 1], 'y': [0, 1]},
-            title = {'text': "Progreso de Conciliación", 'font': {'size': 15, 'weight': 'bold'}},
+            title = {'text': "Eficiencia de Conciliación", 'font': {'size': 15, 'weight': 'bold'}},
             number = {'suffix': "%", 'font': {'size': 32}},
             gauge = {
                 'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "gray"},
@@ -360,33 +396,31 @@ def show_dashboard():
         st.plotly_chart(fig_gauge, use_container_width=True)
         
     with col_chart_r:
-        # Gráfico Waterfall de desglose
+        # Gráfico Waterfall de desglose de Ingresos
         fig_waterfall = go.Figure(go.Waterfall(
-            name = "Desglose",
+            name = "Desglose Caja",
             orientation = "v",
-            measure = ["relative", "relative", "relative", "relative", "total"],
-            x = ["Total Prestado", "Falta Factura", "Falta Cobro", "Discrepancias", "Conciliado"],
+            measure = ["relative", "relative", "relative", "total"],
+            x = ["Total Ingresado", "Sin Identificar", "Discrepancias", "Conciliado"],
             textposition = "outside",
             text = [
-                f"${total_prestado:,.0f}", 
-                f"-${estado_montos['PENDIENTE_FACTURA']:,.0f}", 
-                f"-${estado_montos['PENDIENTE_COBRO']:,.0f}", 
-                f"-${estado_montos['DISCREPANCIA']:,.0f}", 
-                f"${estado_montos['CONCILIADO']:,.0f}"
+                f"${total_ingresado:,.0f}", 
+                f"-${ingresos_sin_identificar:,.0f}", 
+                f"-${ingresos_discrepantes:,.0f}", 
+                f"${ingresos_conciliados:,.0f}"
             ],
             y = [
-                total_prestado, 
-                -estado_montos['PENDIENTE_FACTURA'], 
-                -estado_montos['PENDIENTE_COBRO'], 
-                -estado_montos['DISCREPANCIA'], 
-                estado_montos['CONCILIADO']
+                total_ingresado, 
+                -ingresos_sin_identificar, 
+                -ingresos_discrepantes, 
+                ingresos_conciliados
             ],
             connector = {"line":{"color":"rgba(156, 163, 175, 0.4)", "width": 1, "dash":"dot"}},
         ))
         
-        # Color individual de barras
+        # Color individual de barras (Azul, Ámbar, Rojo, Verde)
         fig_waterfall.update_traces(
-            marker_color = ["#3B82F6", "#F59E0B", "#F59E0B", "#EF4444", "#10B981"]
+            marker_color = ["#3B82F6", "#F59E0B", "#EF4444", "#10B981"]
         )
         
         fig_waterfall.update_layout(
@@ -400,6 +434,44 @@ def show_dashboard():
             yaxis = dict(visible=False)
         )
         st.plotly_chart(fig_waterfall, use_container_width=True)
+        
+    st.markdown("---")
+    
+    # NUEVA SECCIÓN: Deuda Pendiente de Obras Sociales (Cuentas por Cobrar)
+    st.markdown("### Deuda Pendiente y Facturación (Cuentas por Cobrar)")
+    st.markdown(f"Resumen de saldos históricos pendientes acumulados hasta el cierre de **{format_period(end_mes)}**:")
+    
+    col_deuda_l, col_deuda_r = st.columns(2)
+    
+    with col_deuda_l:
+        st.markdown(f"""
+        <div class="metric-card warning" style="border-left: 5px solid #F59E0B; padding: 15px;">
+            <div class="metric-title" style="color: var(--text-color); font-weight: 700;">Pendiente de Facturación (Gestión ➔ AFIP)</div>
+            <div class="metric-value" style="color: #F59E0B; font-size: 26px; font-weight: 800; margin-top: 5px;">${deuda_pendiente_facturar:,.2f}</div>
+            <div class="metric-sub" style="color: gray; margin-top: 5px;">
+                {cant_pendiente_facturar} prestaciones sin factura emitida en AFIP.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col_deuda_r:
+        st.markdown(f"""
+        <div class="metric-card danger" style="border-left: 5px solid #EF4444; padding: 15px;">
+            <div class="metric-title" style="color: var(--text-color); font-weight: 700;">Pendiente de Liquidación/Cobro (AFIP ➔ Banco)</div>
+            <div class="metric-value" style="color: #EF4444; font-size: 26px; font-weight: 800; margin-top: 5px;">${deuda_pendiente_cobrar:,.2f}</div>
+            <div class="metric-sub" style="color: gray; margin-top: 5px;">
+                {cant_pendiente_cobrar} facturas emitidas sin cobro identificado en el banco.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    st.markdown(
+        "<p style='font-size: 12px; color: #64748B; font-style: italic; margin-top: 10px;'>"
+        "* Nota: Estos saldos corresponden a prestaciones contables de meses actuales o anteriores que aún no han cerrado "
+        "su ciclo administrativo debido a los plazos y demoras de facturación y acreditación de las Obras Sociales."
+        "</p>",
+        unsafe_allow_html=True
+    )
 
 
 # PAGE 2: PANEL DE CONCILIACIÓN
