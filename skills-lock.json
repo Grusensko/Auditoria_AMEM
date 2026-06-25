@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "chart-designer": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "skillPath": "chart-designer/SKILL.md",
+      "computedHash": "df44ae89c73df1456aab7e61cf46f2d6d34c9ed016e6747fb9a4c9d596af0f0f"
+    },
     "responsive-design": {
       "source": "wshobson/agents",
       "sourceType": "github",

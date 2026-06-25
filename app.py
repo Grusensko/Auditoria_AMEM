@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 import sqlite3
 import hashlib
+import plotly.graph_objects as go
 from database import (
     get_db_connection, 
     encrypt_data, 
@@ -207,27 +208,54 @@ if not st.session_state.authenticated:
 
 # PAGE 1: DASHBOARD
 def show_dashboard():
-    st.subheader(f"Dashboard de Auditoría — {format_period(st.session_state.mes_trabajo)}")
+    # Slider de rango de períodos
+    slider_months = [
+        "2025-10", "2025-11", "2025-12",
+        "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", 
+        "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"
+    ]
+    slider_labels = {m: format_period(m) for m in slider_months}
+    
+    # Sincronizar con el período global seleccionado en la cabecera
+    default_mes = st.session_state.mes_trabajo
+    if "prev_global_mes" not in st.session_state or st.session_state.prev_global_mes != default_mes:
+        st.session_state.prev_global_mes = default_mes
+        st.session_state.dashboard_period_slider = (default_mes, default_mes)
+        
+    st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True)
+    rango_seleccionado = st.select_slider(
+        "Rango de Períodos para el Dashboard",
+        options=slider_months,
+        format_func=lambda x: slider_labels.get(x, x),
+        key="dashboard_period_slider"
+    )
+    
+    start_mes, end_mes = rango_seleccionado
+    
+    if start_mes == end_mes:
+        periodo_desc = format_period(start_mes)
+    else:
+        periodo_desc = f"{format_period(start_mes)} a {format_period(end_mes)}"
+        
+    st.subheader(f"Dashboard de Auditoría — {periodo_desc}")
     
     # Consultar datos para métricas generales
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    mes_trabajo = st.session_state.mes_trabajo
-    
     # 1. Total Prestaciones
-    cursor.execute("SELECT SUM(monto), COUNT(*) FROM prestaciones WHERE mes_auditoria = ?", (mes_trabajo,))
+    cursor.execute("SELECT SUM(monto), COUNT(*) FROM prestaciones WHERE mes_auditoria >= ? AND mes_auditoria <= ?", (start_mes, end_mes))
     res_p = cursor.fetchone()
     total_prestado = res_p[0] if res_p[0] else 0.0
     cant_prestaciones = res_p[1] if res_p[1] else 0
     
     # 2. Total Facturado AFIP
-    cursor.execute("SELECT SUM(monto_total) FROM facturas WHERE mes_auditoria = ?", (mes_trabajo,))
+    cursor.execute("SELECT SUM(monto_total) FROM facturas WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND estado = 'ACTIVO'", (start_mes, end_mes))
     res_f = cursor.fetchone()
     total_facturado = res_f[0] if res_f[0] else 0.0
     
     # 3. Total Cobrado Banco
-    cursor.execute("SELECT SUM(credito) FROM movimientos_banco WHERE mes_auditoria = ? AND credito > 0", (mes_trabajo,))
+    cursor.execute("SELECT SUM(credito) FROM movimientos_banco WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0", (start_mes, end_mes))
     res_b = cursor.fetchone()
     total_cobrado = res_b[0] if res_b[0] else 0.0
     
@@ -236,9 +264,9 @@ def show_dashboard():
         SELECT estado_final, COUNT(*), SUM(p.monto) 
         FROM conciliaciones c 
         JOIN prestaciones p ON c.prestacion_id = p.id
-        WHERE c.mes_auditoria = ? 
+        WHERE c.mes_auditoria >= ? AND c.mes_auditoria <= ?
         GROUP BY estado_final
-    """, (mes_trabajo,))
+    """, (start_mes, end_mes))
     estados_res = cursor.fetchall()
     
     conn.close()
@@ -294,19 +322,84 @@ def show_dashboard():
 
     st.markdown("---")
     
-    # Gráfico de Torta Simple de Conciliación
+    # Gráficos de Plotly Interactivos
     st.markdown("### Estado General de la Auditoría")
-    chart_data = pd.DataFrame({
-        "Estado": ["CONCILIADO", "PENDIENTE FACTURA", "PENDIENTE COBRO", "DISCREPANCIA"],
-        "Monto ($)": [
-            estado_montos['CONCILIADO'], 
-            estado_montos['PENDIENTE_FACTURA'], 
-            estado_montos['PENDIENTE_COBRO'], 
-            estado_montos['DISCREPANCIA']
-        ]
-    })
     
-    st.bar_chart(chart_data, x="Estado", y="Monto ($)", color="Estado")
+    col_chart_l, col_chart_r = st.columns([1.3, 1.7])
+    
+    with col_chart_l:
+        # Calcular porcentaje de conciliación
+        porcentaje_conciliado = (estado_montos['CONCILIADO'] / total_prestado * 100) if total_prestado > 0 else 0.0
+        
+        fig_gauge = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = porcentaje_conciliado,
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Progreso de Conciliación", 'font': {'size': 15, 'weight': 'bold'}},
+            number = {'suffix': "%", 'font': {'size': 32}},
+            gauge = {
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "gray"},
+                'bar': {'color': "#10B981"},
+                'bgcolor': "rgba(0,0,0,0)",
+                'borderwidth': 1,
+                'bordercolor': "gray",
+                'steps': [
+                    {'range': [0, 50], 'color': 'rgba(239, 68, 68, 0.15)'},   # Rojo suave
+                    {'range': [50, 85], 'color': 'rgba(245, 158, 11, 0.15)'},  # Amarillo suave
+                    {'range': [85, 100], 'color': 'rgba(16, 185, 129, 0.15)'} # Verde suave
+                ]
+            }
+        ))
+        fig_gauge.update_layout(
+            height=260,
+            margin=dict(l=25, r=25, t=50, b=25),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font={'color': 'var(--text-color)', 'family': 'Outfit, Inter, sans-serif'}
+        )
+        st.plotly_chart(fig_gauge, use_container_width=True)
+        
+    with col_chart_r:
+        # Gráfico Waterfall de desglose
+        fig_waterfall = go.Figure(go.Waterfall(
+            name = "Desglose",
+            orientation = "v",
+            measure = ["relative", "relative", "relative", "relative", "total"],
+            x = ["Total Prestado", "Falta Factura", "Falta Cobro", "Discrepancias", "Conciliado"],
+            textposition = "outside",
+            text = [
+                f"${total_prestado:,.0f}", 
+                f"-${estado_montos['PENDIENTE_FACTURA']:,.0f}", 
+                f"-${estado_montos['PENDIENTE_COBRO']:,.0f}", 
+                f"-${estado_montos['DISCREPANCIA']:,.0f}", 
+                f"${estado_montos['CONCILIADO']:,.0f}"
+            ],
+            y = [
+                total_prestado, 
+                -estado_montos['PENDIENTE_FACTURA'], 
+                -estado_montos['PENDIENTE_COBRO'], 
+                -estado_montos['DISCREPANCIA'], 
+                estado_montos['CONCILIADO']
+            ],
+            connector = {"line":{"color":"rgba(156, 163, 175, 0.4)", "width": 1, "dash":"dot"}},
+        ))
+        
+        # Color individual de barras
+        fig_waterfall.update_traces(
+            marker_color = ["#3B82F6", "#F59E0B", "#F59E0B", "#EF4444", "#10B981"]
+        )
+        
+        fig_waterfall.update_layout(
+            title = {"text": "Flujo de Desglose de Caja ($)", "font": {"size": 15, "weight": 'bold'}, "x": 0.5},
+            height = 280,
+            margin = dict(l=20, r=20, t=50, b=20),
+            paper_bgcolor = 'rgba(0,0,0,0)',
+            plot_bgcolor = 'rgba(0,0,0,0)',
+            font = {'color': 'var(--text-color)', 'family': 'Outfit, Inter, sans-serif'},
+            showlegend = False,
+            yaxis = dict(visible=False)
+        )
+        st.plotly_chart(fig_waterfall, use_container_width=True)
 
 
 # PAGE 2: PANEL DE CONCILIACIÓN
@@ -522,14 +615,19 @@ def show_buscador():
                 if prest_asoc:
                     p_data = [{
                         'Paciente': p['paciente'],
-                        'Periodo': p['periodo'],
+                        'Periodo': str(p['periodo']).upper().strip(),
                         'Monto': p['monto'],
                         'Factura': p['factura_nro'],
                         'Estado': status_map.get(p['estado_conciliacion'], p['estado_conciliacion'])
                     } for p in prest_asoc]
                     
+                    df_p = pd.DataFrame(p_data)
+                    meses_orden = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+                    df_p['Periodo'] = pd.Categorical(df_p['Periodo'], categories=meses_orden, ordered=True)
+                    df_p = df_p.sort_values('Periodo')
+                    
                     st.dataframe(
-                        pd.DataFrame(p_data),
+                        df_p,
                         column_config={
                             "Monto": st.column_config.NumberColumn("Monto", format="$%,.2f")
                         },
