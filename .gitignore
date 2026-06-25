@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite database (will be auto-created on startup)
+*.db
+amem_audit.db
+
+# Temporary uploads
+temp_uploads/
+
+# OS and IDE files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Streamlit secrets (local only, never to be pushed)
+.streamlit/secrets.toml
