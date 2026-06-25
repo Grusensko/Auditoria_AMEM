@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import io
 from database import get_db_connection, decrypt_data
+from conciliador import get_period_sort_value
 
 def generate_excel_report(mes_auditoria: str) -> bytes:
     """Genera un archivo Excel formateado profesionalmente con los resultados de la conciliación."""
@@ -34,6 +35,11 @@ def generate_excel_report(mes_auditoria: str) -> bytes:
     
     df = pd.read_sql_query(query, conn, params=(mes_auditoria,))
     conn.close()
+    
+    if not df.empty:
+        # Ordenar por el orden cronológico del período
+        df['_sort_key'] = df.apply(lambda row: get_period_sort_value(row['Período Prestación'], mes_auditoria), axis=1)
+        df = df.sort_values('_sort_key').drop(columns=['_sort_key'])
     
     if df.empty:
         # Retornar un Excel vacío o básico

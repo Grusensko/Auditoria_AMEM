@@ -46,6 +46,37 @@ def get_cuit_for_obra_social(os_name: str) -> str:
     os_name_upper = str(os_name).upper().strip()
     return OS_CUIT_MAP.get(os_name_upper, "")
 
+def get_period_sort_value(periodo_str: str, mes_auditoria: str) -> tuple:
+    """Calcula una tupla (año, mes, nombre) para ordenar cronológicamente los períodos en el contexto de un mes de auditoría."""
+    periodo_str = str(periodo_str or '').upper().strip()
+    
+    if not mes_auditoria:
+        mes_auditoria = '2026-01'
+    try:
+        audit_year, audit_month = map(int, mes_auditoria.split('-'))
+    except Exception:
+        audit_year, audit_month = 2026, 1
+        
+    first_part = periodo_str.split('/')[0].strip()
+    
+    MONTH_MAP = {
+        'ENERO': 1, 'FEBRERO': 2, 'MARZO': 3, 'ABRIL': 4,
+        'MAYO': 5, 'JUNIO': 6, 'JULIO': 7, 'AGOSTO': 8,
+        'SEPTIEMBRE': 9, 'SETIEMBRE': 9, 'OCTUBRE': 10, 'NOVIEMBRE': 11, 'DICIEMBRE': 12
+    }
+    
+    if first_part in MONTH_MAP:
+        period_month = MONTH_MAP[first_part]
+        if period_month > audit_month:
+            period_year = audit_year - 1
+        else:
+            period_year = audit_year
+    else:
+        period_month = 0
+        period_year = audit_year
+        
+    return (period_year, period_month, periodo_str)
+
 def run_conciliacion(mes_auditoria: str):
     """Ejecuta la conciliación de tres vías para un mes de auditoría específico."""
     conn = get_db_connection()

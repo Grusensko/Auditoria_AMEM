@@ -14,7 +14,7 @@ from database import (
     init_db
 )
 from loader import load_afip_ventas, load_excel_banco, load_excel_prestaciones
-from conciliador import run_conciliacion, OS_CUIT_MAP
+from conciliador import run_conciliacion, OS_CUIT_MAP, get_period_sort_value
 from excel_exporter import generate_excel_report
 
 def format_period(period_str):
@@ -208,57 +208,25 @@ if not st.session_state.authenticated:
 
 # PAGE 1: DASHBOARD
 def show_dashboard():
-    # Slider de rango de períodos limitado al año 2026
-    slider_months = [
-        "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", 
-        "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"
-    ]
-    slider_labels = {m: format_period(m) for m in slider_months}
+    mes_trabajo = st.session_state.mes_trabajo
     
-    # Sincronizar con el período global seleccionado en la cabecera
-    # Si el mes global es de 2025 (ej: 2025-12), el slider se inicializa por defecto en 2026-01
-    default_mes = st.session_state.mes_trabajo
-    if not default_mes.startswith("2026"):
-        default_mes = "2026-01"
+    # Si el mes global es de 2025 (ej: 2025-12), forzar visualización en Enero 2026
+    # ya que la auditoría es estrictamente desde enero 2026
+    if not mes_trabajo.startswith("2026"):
+        mes_trabajo = "2026-01"
         
-    # Inicializar el rango en session_state si no existe
-    if "dashboard_range" not in st.session_state:
-        st.session_state.dashboard_range = (default_mes, default_mes)
-        st.session_state.prev_global_mes = st.session_state.mes_trabajo
-        
-    # Si cambió el mes de trabajo global, resetear el slider a ese mes
-    if st.session_state.prev_global_mes != st.session_state.mes_trabajo:
-        st.session_state.prev_global_mes = st.session_state.mes_trabajo
-        st.session_state.dashboard_range = (default_mes, default_mes)
-        
-    st.markdown("<div style='margin-bottom: -10px;'></div>", unsafe_allow_html=True)
-    rango_seleccionado = st.select_slider(
-        "Rango de Períodos para el Dashboard (Ingresos)",
-        options=slider_months,
-        value=st.session_state.dashboard_range,
-        format_func=lambda x: slider_labels.get(x, x)
-    )
-    
-    st.session_state.dashboard_range = rango_seleccionado
-    start_mes, end_mes = rango_seleccionado
-    
-    if start_mes == end_mes:
-        periodo_desc = format_period(start_mes)
-    else:
-        periodo_desc = f"{format_period(start_mes)} a {format_period(end_mes)}"
-        
-    st.subheader(f"Dashboard de Auditoría de Ingresos — {periodo_desc}")
+    st.subheader(f"Dashboard de Auditoría de Ingresos — {format_period(mes_trabajo)}")
     
     # Consultar datos en la base de datos
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Total Ingresado (Banco Supervielle) en el rango seleccionado
+    # 1. Total Ingresado (Banco Supervielle) en el mes seleccionado
     cursor.execute("""
         SELECT SUM(credito), COUNT(*) 
         FROM movimientos_banco 
-        WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0
-    """, (start_mes, end_mes))
+        WHERE mes_auditoria = ? AND credito > 0
+    """, (mes_trabajo,))
     res_b = cursor.fetchone()
     total_ingresado = res_b[0] if res_b[0] else 0.0
     cant_ingresos = res_b[1] if res_b[1] else 0
@@ -266,24 +234,22 @@ def show_dashboard():
     # 2. Ingresos Conciliados (Match)
     # Sumamos el crédito de los depósitos del período que estén conciliados
     cursor.execute("""
-        SELECT SUM(b.credito), COUNT(distinct b.id)
-        FROM movimientos_banco b
-        JOIN conciliaciones c ON b.id = c.movimiento_banco_id
-        WHERE b.mes_auditoria >= ? AND b.mes_auditoria <= ? 
-          AND c.estado_final = 'CONCILIADO'
-    """, (start_mes, end_mes))
+        SELECT SUM(credito), COUNT(id)
+        FROM movimientos_banco
+        WHERE mes_auditoria = ? AND credito > 0
+          AND id IN (SELECT DISTINCT movimiento_banco_id FROM conciliaciones WHERE estado_final = 'CONCILIADO')
+    """, (mes_trabajo,))
     res_c = cursor.fetchone()
     ingresos_conciliados = res_c[0] if res_c[0] else 0.0
     cant_conciliados = res_c[1] if res_c[1] else 0
     
     # 3. Ingresos con Discrepancia
     cursor.execute("""
-        SELECT SUM(b.credito), COUNT(distinct b.id)
-        FROM movimientos_banco b
-        JOIN conciliaciones c ON b.id = c.movimiento_banco_id
-        WHERE b.mes_auditoria >= ? AND b.mes_auditoria <= ? 
-          AND c.estado_final = 'DISCREPANCIA'
-    """, (start_mes, end_mes))
+        SELECT SUM(credito), COUNT(id)
+        FROM movimientos_banco
+        WHERE mes_auditoria = ? AND credito > 0
+          AND id IN (SELECT DISTINCT movimiento_banco_id FROM conciliaciones WHERE estado_final = 'DISCREPANCIA')
+    """, (mes_trabajo,))
     res_d = cursor.fetchone()
     ingresos_discrepantes = res_d[0] if res_d[0] else 0.0
     cant_discrepantes = res_d[1] if res_d[1] else 0
@@ -292,32 +258,32 @@ def show_dashboard():
     cursor.execute("""
         SELECT SUM(credito), COUNT(*)
         FROM movimientos_banco
-        WHERE mes_auditoria >= ? AND mes_auditoria <= ? AND credito > 0
+        WHERE mes_auditoria = ? AND credito > 0
           AND id NOT IN (SELECT DISTINCT movimiento_banco_id FROM conciliaciones WHERE movimiento_banco_id IS NOT NULL)
-    """, (start_mes, end_mes))
+    """, (mes_trabajo,))
     res_s = cursor.fetchone()
     ingresos_sin_identificar = res_s[0] if res_s[0] else 0.0
     cant_sin_identificar = res_s[1] if res_s[1] else 0
     
     # 5. Prestaciones y Facturas en el mismo período (para referencia y panel de Deuda)
-    # Pendientes de Facturación (en AFIP) acumulado hasta end_mes
+    # Pendientes de Facturación (en AFIP) acumulado hasta mes_trabajo
     cursor.execute("""
         SELECT SUM(monto), COUNT(*) 
         FROM prestaciones 
         WHERE mes_auditoria <= ? 
           AND estado_conciliacion = 'PENDIENTE_FACTURA'
-    """, (end_mes,))
+    """, (mes_trabajo,))
     res_pf = cursor.fetchone()
     deuda_pendiente_facturar = res_pf[0] if res_pf[0] else 0.0
     cant_pendiente_facturar = res_pf[1] if res_pf[1] else 0
     
-    # Pendientes de Cobro (en Banco) acumulado hasta end_mes
+    # Pendientes de Cobro (en Banco) acumulado hasta mes_trabajo
     cursor.execute("""
         SELECT SUM(monto), COUNT(*) 
         FROM prestaciones 
         WHERE mes_auditoria <= ? 
           AND estado_conciliacion = 'PENDIENTE_COBRO'
-    """, (end_mes,))
+    """, (mes_trabajo,))
     res_pc = cursor.fetchone()
     deuda_pendiente_cobrar = res_pc[0] if res_pc[0] else 0.0
     cant_pendiente_cobrar = res_pc[1] if res_pc[1] else 0
@@ -423,12 +389,10 @@ def show_dashboard():
                 ingresos_conciliados
             ],
             connector = {"line":{"color":"rgba(156, 163, 175, 0.4)", "width": 1, "dash":"dot"}},
+            increasing = {"marker": {"color": "#3B82F6"}}, # Azul
+            decreasing = {"marker": {"color": "#F59E0B"}}, # Ámbar/Naranja
+            totals = {"marker": {"color": "#10B981"}}      # Verde esmeralda
         ))
-        
-        # Color individual de barras (Azul, Ámbar, Rojo, Verde)
-        fig_waterfall.update_traces(
-            marker_color = ["#3B82F6", "#F59E0B", "#EF4444", "#10B981"]
-        )
         
         fig_waterfall.update_layout(
             title = {"text": "Flujo de Desglose de Caja ($)", "font": {"size": 15, "weight": 'bold'}, "x": 0.5},
@@ -446,7 +410,7 @@ def show_dashboard():
     
     # NUEVA SECCIÓN: Deuda Pendiente de Obras Sociales (Cuentas por Cobrar)
     st.markdown("### Deuda Pendiente y Facturación (Cuentas por Cobrar)")
-    st.markdown(f"Resumen de saldos históricos pendientes acumulados hasta el cierre de **{format_period(end_mes)}**:")
+    st.markdown(f"Resumen de saldos históricos pendientes acumulados hasta el cierre de **{format_period(mes_trabajo)}**:")
     
     col_deuda_l, col_deuda_r = st.columns(2)
     
@@ -522,6 +486,12 @@ def show_conciliacion():
         # Guardamos el estado original para poder filtrar y modificar
         df_items['estado_raw'] = df_items['estado']
         df_items['estado'] = df_items['estado'].map(lambda x: status_map.get(x, str(x)))
+        
+        # Ordenar los períodos cronológicamente y convertirlos a Categorical para sorting correcto
+        unique_periods = [p for p in df_items['periodo'].unique() if pd.notna(p)]
+        sorted_unique_periods = sorted(unique_periods, key=lambda x: get_period_sort_value(x, mes_trabajo))
+        df_items['periodo'] = pd.Categorical(df_items['periodo'], categories=sorted_unique_periods, ordered=True)
+        df_items = df_items.sort_values('periodo')
         
         # Filtro de Estado
         est_filter_display = st.multiselect(
@@ -697,13 +667,23 @@ def show_buscador():
                         'Periodo': str(p['periodo']).upper().strip(),
                         'Monto': p['monto'],
                         'Factura': p['factura_nro'],
-                        'Estado': status_map.get(p['estado_conciliacion'], p['estado_conciliacion'])
+                        'Estado': status_map.get(p['estado_conciliacion'], p['estado_conciliacion']),
+                        '_sort_key': get_period_sort_value(p['periodo'], p['mes_auditoria'])
                     } for p in prest_asoc]
                     
+                    # Ordenar la lista base por la clave de ordenamiento
+                    p_data = sorted(p_data, key=lambda x: x['_sort_key'])
+                    
+                    # Extraer el orden único obtenido para definir la categoría
+                    unique_periods = []
+                    for item in p_data:
+                        p_val = item['Periodo']
+                        if p_val not in unique_periods:
+                            unique_periods.append(p_val)
+                            
                     df_p = pd.DataFrame(p_data)
-                    meses_orden = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
-                    df_p['Periodo'] = pd.Categorical(df_p['Periodo'], categories=meses_orden, ordered=True)
-                    df_p = df_p.sort_values('Periodo')
+                    df_p['Periodo'] = pd.Categorical(df_p['Periodo'], categories=unique_periods, ordered=True)
+                    df_p = df_p.drop(columns=['_sort_key']).sort_values('Periodo')
                     
                     st.dataframe(
                         df_p,
@@ -820,9 +800,23 @@ def show_importacion():
             has_processed = True
             
         if has_processed:
-            with st.spinner("Ejecutando algoritmo de conciliación de tres vías..."):
-                res_c = run_conciliacion(mes_trabajo)
-            st.success(f"¡Procesamiento masivo completado! Conciliados: {res_c['conciliados']} | Pendientes de Factura: {res_c['pendientes_factura']} | Pendientes de Cobro: {res_c['pendientes_cobro']} | Discrepancias: {res_c['discrepancias']}")
+            with st.spinner("Ejecutando algoritmo de conciliación de tres vías para el período y meses previos..."):
+                # Obtener los 3 meses anteriores para re-evaluar la conciliación
+                year, month = map(int, mes_trabajo.split('-'))
+                meses_a_conciliar = []
+                for i in range(3, -1, -1):
+                    m = month - i
+                    y = year
+                    if m <= 0:
+                        m += 12
+                        y -= 1
+                    meses_a_conciliar.append(f"{y:04d}-{m:02d}")
+                
+                # Ejecutar en orden cronológico para propagar los cobros
+                for m in meses_a_conciliar:
+                    res_c = run_conciliacion(m)
+                    
+            st.success(f"¡Procesamiento masivo completado! Para {format_period(mes_trabajo)}: Conciliados: {res_c['conciliados']} | Pendientes de Factura: {res_c['pendientes_factura']} | Pendientes de Cobro: {res_c['pendientes_cobro']} | Discrepancias: {res_c['discrepancias']}")
         else:
             st.warning("Sube al menos un archivo para poder procesar.")
 
@@ -884,7 +878,7 @@ with col_period:
     if "mes_trabajo" not in st.session_state:
         st.session_state.mes_trabajo = "2026-05"
         
-    opciones_meses = ["2026-05", "2026-04", "2026-03", "2026-02", "2026-01", "2025-12", "2025-11", "2025-10"]
+    opciones_meses = ["2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]
     opciones_formateadas = {m: format_period(m) for m in opciones_meses}
     idx_default = opciones_meses.index(st.session_state.mes_trabajo) if st.session_state.mes_trabajo in opciones_meses else 0
     

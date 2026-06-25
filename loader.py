@@ -291,12 +291,14 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
         """, (fecha, hora, concepto, detalle, debito, credito, saldo))
         
         if not cursor.fetchone():
+            # Determinar el mes de auditoría basado en la fecha de la transacción
+            mes_transaccion = fecha[:7] if len(fecha) >= 7 and fecha[4] == '-' else mes_auditoria
             cursor.execute("""
             INSERT INTO movimientos_banco (
                 fecha, hora, concepto, detalle, debito, credito, saldo, 
                 cuit_hash_asociado, cuit_txt_asociado, mes_auditoria
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (fecha, hora, concepto, detalle, debito, credito, saldo, c_hash, cuit_asociado if cuit_asociado else None, mes_auditoria))
+            """, (fecha, hora, concepto, detalle, debito, credito, saldo, c_hash, cuit_asociado if cuit_asociado else None, mes_transaccion))
             count += 1
         
     conn.commit()
