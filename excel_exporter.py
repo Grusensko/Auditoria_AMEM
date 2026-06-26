@@ -37,9 +37,12 @@ def generate_excel_report(mes_auditoria: str) -> bytes:
     conn.close()
     
     if not df.empty:
-        # Ordenar por el orden cronológico del período
-        df['_sort_key'] = df.apply(lambda row: get_period_sort_value(row['Período Prestación'], mes_auditoria), axis=1)
-        df = df.sort_values('_sort_key').drop(columns=['_sort_key'])
+        # Formatear el periodo con el año y mes para ordenamiento seguro (ej: '2025-12 - DICIEMBRE')
+        df['Período Prestación'] = df.apply(
+            lambda row: f"{get_period_sort_value(row['Período Prestación'], mes_auditoria)[0]}-{get_period_sort_value(row['Período Prestación'], mes_auditoria)[1]:02d} - {get_period_sort_value(row['Período Prestación'], mes_auditoria)[2]}",
+            axis=1
+        )
+        df = df.sort_values('Período Prestación')
     
     if df.empty:
         # Retornar un Excel vacío o básico

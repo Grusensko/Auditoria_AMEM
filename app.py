@@ -31,6 +31,10 @@ def format_period(period_str):
     except Exception:
         return period_str
 
+def get_period_display_name(periodo_str, mes_auditoria):
+    year, month, name = get_period_sort_value(periodo_str, mes_auditoria)
+    return f"{year}-{month:02d} - {name}"
+
 
 # Asegurar que la base de datos esté creada al iniciar la app
 init_db()
@@ -487,11 +491,13 @@ def show_conciliacion():
         df_items['estado_raw'] = df_items['estado']
         df_items['estado'] = df_items['estado'].map(lambda x: status_map.get(x, str(x)))
         
-        # Ordenar los períodos cronológicamente y convertirlos a Categorical para sorting correcto
-        unique_periods = [p for p in df_items['periodo'].unique() if pd.notna(p)]
-        sorted_unique_periods = sorted(unique_periods, key=lambda x: get_period_sort_value(x, mes_trabajo))
-        df_items['periodo'] = pd.Categorical(df_items['periodo'], categories=sorted_unique_periods, ordered=True)
-        df_items = df_items.sort_values('periodo')
+        # Formatear el periodo con el año y mes para ordenamiento seguro (ej: '2025-12 - DICIEMBRE')
+        df_items['periodo_display'] = df_items.apply(lambda row: get_period_display_name(row['periodo'], mes_trabajo), axis=1)
+        
+        # Ordenar los períodos cronológicamente
+        unique_periods = sorted(df_items['periodo_display'].unique())
+        df_items['periodo_display'] = pd.Categorical(df_items['periodo_display'], categories=unique_periods, ordered=True)
+        df_items = df_items.sort_values('periodo_display')
         
         # Filtro de Estado
         est_filter_display = st.multiselect(
@@ -506,7 +512,7 @@ def show_conciliacion():
         df_display = filtered_df.rename(columns={
             'os': 'Obra Social',
             'paciente': 'Paciente',
-            'periodo': 'Período',
+            'periodo_display': 'Período',
             'monto': 'Monto',
             'factura_nro': 'Factura Nº',
             'estado': 'Estado Conciliación',
@@ -664,26 +670,13 @@ def show_buscador():
                 if prest_asoc:
                     p_data = [{
                         'Paciente': p['paciente'],
-                        'Periodo': str(p['periodo']).upper().strip(),
+                        'Periodo': get_period_display_name(p['periodo'], p['mes_auditoria']),
                         'Monto': p['monto'],
                         'Factura': p['factura_nro'],
-                        'Estado': status_map.get(p['estado_conciliacion'], p['estado_conciliacion']),
-                        '_sort_key': get_period_sort_value(p['periodo'], p['mes_auditoria'])
+                        'Estado': status_map.get(p['estado_conciliacion'], p['estado_conciliacion'])
                     } for p in prest_asoc]
-                    
-                    # Ordenar la lista base por la clave de ordenamiento
-                    p_data = sorted(p_data, key=lambda x: x['_sort_key'])
-                    
-                    # Extraer el orden único obtenido para definir la categoría
-                    unique_periods = []
-                    for item in p_data:
-                        p_val = item['Periodo']
-                        if p_val not in unique_periods:
-                            unique_periods.append(p_val)
-                            
                     df_p = pd.DataFrame(p_data)
-                    df_p['Periodo'] = pd.Categorical(df_p['Periodo'], categories=unique_periods, ordered=True)
-                    df_p = df_p.drop(columns=['_sort_key']).sort_values('Periodo')
+                    df_p = df_p.sort_values('Periodo')
                     
                     st.dataframe(
                         df_p,

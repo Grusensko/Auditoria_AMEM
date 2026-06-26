@@ -202,7 +202,49 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
             
         # Período y Paciente (si existen)
         paciente = str(row.get('PACIENTE')).strip() if 'PACIENTE' in df.columns and pd.notna(row.get('PACIENTE')) else ""
-        periodo = str(row.get('PERIODO')).strip() if 'PERIODO' in df.columns and pd.notna(row.get('PERIODO')) else ""
+        periodo_raw = str(row.get('PERIODO')).strip().upper() if 'PERIODO' in df.columns and pd.notna(row.get('PERIODO')) else ""
+        
+        MONTH_MAP = {
+            'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 
+            'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'SETIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+        }
+        
+        # Verificar si es un mes estándar
+        is_valid_month = False
+        for m in MONTH_MAP:
+            if m in periodo_raw:
+                is_valid_month = True
+                break
+                
+        if is_valid_month:
+            periodo = periodo_raw
+        else:
+            # Intentar deducir del campo fecha_factura (fecha_prestacion)
+            deduced = ""
+            if fecha_prestacion: # YYYY-MM-DD
+                try:
+                    f_month = fecha_prestacion.split('-')[1]
+                    meses_esp = {
+                        "01": "ENERO", "02": "FEBRERO", "03": "MARZO", "04": "ABRIL",
+                        "05": "MAYO", "06": "JUNIO", "07": "JULIO", "08": "AGOSTO",
+                        "09": "SETIEMBRE", "10": "OCTUBRE", "11": "NOVIEMBRE", "12": "DICIEMBRE"
+                    }
+                    deduced = meses_esp.get(f_month, "")
+                except Exception:
+                    pass
+            # Si no hay fecha de factura, intentar deducir de mes_auditoria
+            if not deduced:
+                try:
+                    f_month = mes_auditoria.split('-')[1]
+                    meses_esp = {
+                        "01": "ENERO", "02": "FEBRERO", "03": "MARZO", "04": "ABRIL",
+                        "05": "MAYO", "06": "JUNIO", "07": "JULIO", "08": "AGOSTO",
+                        "09": "SETIEMBRE", "10": "OCTUBRE", "11": "NOVIEMBRE", "12": "DICIEMBRE"
+                    }
+                    deduced = meses_esp.get(f_month, "")
+                except Exception:
+                    pass
+            periodo = deduced if deduced else (periodo_raw if periodo_raw else "DESCONOCIDO")
         
         # Fecha de cobro registrada en Excel
         fecha_pago = ""
