@@ -39,6 +39,14 @@ def extract_cuit_and_name_from_bank_detail(detail: str) -> tuple[str, str]:
     if benef_match:
         cuit = benef_match.group(1)
         
+    # Si no se encuentra con palabras clave, buscar cualquier CUIT de 11 dígitos consecutivos
+    if not cuit:
+        # Limpiar guiones en el detalle para detectar CUITs con formato XX-XXXXXXXX-X
+        detail_clean = re.sub(r'(\d+)-(\d+)-(\d+)', r'\1\2\3', detail)
+        cuit_match = re.search(r'\b(\d{11})\b', detail_clean)
+        if cuit_match:
+            cuit = cuit_match.group(1)
+        
     # Buscar patrón de NOMBRE
     name_match = re.search(r'NOMBRE:\s*([^CBU:]+)', detail, re.IGNORECASE)
     if name_match:
