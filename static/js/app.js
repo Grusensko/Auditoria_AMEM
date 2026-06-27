@@ -1495,10 +1495,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- BUSCADOR DE CLIENTES ---
-    clientSearchInp.addEventListener("input", () => {
-        loadClientes(clientSearchInp.value.trim());
-    });
+    // --- BUSCADOR Y FILTROS DE CLIENTES ---
+    const clientStatusFilter = document.getElementById("clientes-status-filter");
+    
+    if (clientSearchInp) {
+        clientSearchInp.addEventListener("input", () => {
+            loadClientes(clientSearchInp.value.trim());
+        });
+    }
+
+    if (clientStatusFilter) {
+        clientStatusFilter.addEventListener("change", () => {
+            loadClientes(clientSearchInp.value.trim());
+        });
+    }
 
     // Función auxiliar para calcular diferencia de meses para el delay normal
     function getMonthsDiff(period1, period2) {
@@ -1520,33 +1530,51 @@ document.addEventListener("DOMContentLoaded", () => {
             const container = document.getElementById("clientes-master-list");
             container.innerHTML = "";
             
-            if (data.length > 0) {
-                data.forEach(c => {
+            // Leer estado del filtro
+            const filterVal = clientStatusFilter ? clientStatusFilter.value : "todos";
+            
+            // Filtrar clientes
+            let filtered = data;
+            if (filterVal === "bien") {
+                filtered = filtered.filter(c => c.estado_filtro === "bien");
+            } else if (filterVal === "problemas") {
+                filtered = filtered.filter(c => c.estado_filtro === "problemas");
+            }
+            
+            // Actualizar contadores en el pie
+            const lblTotal = document.getElementById("lbl-clientes-total");
+            const lblFiltrados = document.getElementById("lbl-clientes-filtrados");
+            if (lblTotal) lblTotal.textContent = data.length;
+            if (lblFiltrados) lblFiltrados.textContent = filtered.length;
+            
+            if (filtered.length > 0) {
+                filtered.forEach(c => {
                     const card = document.createElement("div");
                     const isSelected = c.cuit_hash === selectedClienteHash;
                     card.className = isSelected ? "selected-button-wrapper" : "normal-button-wrapper";
                     
-                    let catClass = "blue";
+                    // Categorías compactas
+                    let tagLabel = "AFIP";
+                    let tagClass = "green";
                     if (c.categoria) {
                         const catLower = c.categoria.toLowerCase();
-                        if (catLower.includes("obra social") || catLower.includes("os") || catLower.includes("pami") || catLower.includes("osep")) {
-                            catClass = "green";
-                        } else if (catLower.includes("prepaga") || catLower.includes("osde")) {
-                            catClass = "blue";
-                        } else if (catLower.includes("particular") || catLower.includes("privado")) {
-                            catClass = "orange";
+                        if (catLower.includes("banco")) {
+                            tagLabel = "Banco";
+                            tagClass = "orange";
                         }
                     }
                     
                     const btn = document.createElement("button");
-                    btn.innerHTML = `<strong>👤 ${c.nombre}</strong><br>
-                    <span style="opacity:0.8;font-size:11px;">CUIT: ${c.cuit}</span>
-                    <span class="status-chip ${catClass}" style="float: right; font-size: 9px; padding: 2px 6px; margin-top: 2px;">${c.categoria || "Obra Social"}</span>`;
+                    btn.innerHTML = `<div style="font-weight:700; font-size:12.5px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">👤 ${c.nombre}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.85;">
+                        <span>CUIT: ${c.cuit}</span>
+                        <span class="status-chip ${tagClass}" style="font-size:8px; padding:1px 5px; margin:0; line-height:1; border-radius:3px;">${tagLabel}</span>
+                    </div>`;
                     
                     btn.addEventListener("click", () => {
                         selectedClienteHash = c.cuit_hash;
                         loadClientes(query); // Refrescar selección en maestro
-                        showClienteFicha(c.cuit_hash, c.nombre, c.categoria || "Obra Social");
+                        showClienteFicha(c.cuit_hash, c.nombre, c.categoria || "Obra Social", c.cuit);
                     });
                     
                     card.appendChild(btn);
@@ -1558,7 +1586,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { console.error(e); }
     }
 
-    async function showClienteFicha(cuitHash, nombre, categoria) {
+    async function showClienteFicha(cuitHash, nombre, categoria, cuitReal) {
         try {
             // Ocultar placeholder y mostrar ficha
             document.getElementById("clientes-placeholder").classList.add("hidden");
@@ -1569,7 +1597,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             
             document.getElementById("ficha-cliente-nombre").textContent = nombre;
-            document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitHash.substring(0, 2) === "30" || cuitHash.length > 20 ? cuitHash : "Cifrado en BD"}`;
+            // Mostrar CUIT real desencriptado en lugar de hash
+            document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitReal}`;
             
             const catBadge = document.getElementById("ficha-cliente-categoria-badge");
             catBadge.textContent = categoria;
@@ -1599,7 +1628,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     montoConciliado += p.monto;
                 } else {
                     // Si no está conciliado, evaluar el delay contable
-                    // Tomamos como referencia el período actual (ej: "2026-05")
                     const diff = getMonthsDiff(p.mes_auditoria, currentPeriod);
                     if (diff <= 3) {
                         montoDelayNormal += p.monto;

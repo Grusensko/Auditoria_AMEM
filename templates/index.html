@@ -11,7 +11,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Estilos CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=2.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.1">
 </head>
 <body>
 
@@ -235,8 +235,20 @@
                         <div class="master-search-bar">
                             <input type="text" id="clientes-search-input" placeholder="🔍 Buscar por CUIT o Nombre...">
                         </div>
-                        <div class="master-list-wrapper" id="clientes-master-list" style="padding: 10px;">
+                        <div class="master-filters" style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); background-color: rgba(0, 0, 0, 0.01);">
+                            <label class="filter-header" style="margin-bottom: 4px;">Estado Contable:</label>
+                            <select id="clientes-status-filter" style="width: 100%; padding: 6px 10px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none;">
+                                <option value="todos">📋 Mostrar Todos</option>
+                                <option value="problemas" selected>⚠️ Con Descuadres / Pendientes</option>
+                                <option value="bien">🟢 En Equilibrio / Conciliados</option>
+                            </select>
+                        </div>
+                        <div class="master-list-wrapper" id="clientes-master-list" style="padding: 10px; flex-grow: 1;">
                             <!-- Se carga dinámicamente -->
+                        </div>
+                        <div class="master-footer" id="clientes-master-footer" style="padding: 10px 15px; border-top: 1px solid var(--border-color); background-color: var(--bg-secondary); font-size: 11px; font-weight: 600; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 12px 12px;">
+                            <span>Total: <span id="lbl-clientes-total" style="color: var(--text-primary);">0</span></span>
+                            <span>Filtrados: <span id="lbl-clientes-filtrados" style="color: var(--text-primary);">0</span></span>
                         </div>
                     </div>
 
@@ -460,6 +472,6 @@
     </div>
 
     <!-- Scripts de Lógica y UI -->
-    <script src="/static/js/app.js?v=2.0"></script>
+    <script src="/static/js/app.js?v=2.1"></script>
 </body>
 </html>

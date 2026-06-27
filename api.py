@@ -604,20 +604,77 @@ def get_clientes(query: Optional[str] = None):
     cursor = conn.cursor()
     cursor.execute("SELECT cuit_hash, cuit_encrypted, nombre_razon_social_encrypted, categoria FROM clientes")
     clientes_raw = cursor.fetchall()
-    conn.close()
     
     clientes_list = []
     for c in clientes_raw:
         cuit = decrypt_data(c['cuit_encrypted'])
         nombre = decrypt_data(c['nombre_razon_social_encrypted'])
+        c_hash = c['cuit_hash']
         
-        if not query or query.lower() in cuit or query.lower() in nombre.lower():
-            clientes_list.append({
-                "cuit_hash": c['cuit_hash'],
-                "cuit": cuit,
-                "nombre": nombre,
-                "categoria": c['categoria']
-            })
+        if query and not (query.lower() in cuit or query.lower() in nombre.lower()):
+            continue
+            
+        # 1. Buscar prestaciones asociadas al cliente por nombre
+        cursor.execute("""
+            SELECT estado_conciliacion, monto
+            FROM prestaciones
+            WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%'
+        """, (f"%{nombre[:5]}%", nombre))
+        prests = cursor.fetchall()
+        
+        # 2. Buscar facturas asociadas
+        cursor.execute("""
+            SELECT monto_total, estado
+            FROM facturas
+            WHERE cuit_hash = ?
+        """, (c_hash,))
+        facts = cursor.fetchall()
+        
+        # 3. Buscar movimientos del banco
+        cursor.execute("""
+            SELECT credito
+            FROM movimientos_banco
+            WHERE cuit_hash_asociado = ?
+        """, (c_hash,))
+        bancos = cursor.fetchall()
+        
+        # Lógica contable de estado para filtros
+        tiene_discrepancias = any(p['estado_conciliacion'] == 'DISCREPANCIA' for p in prests)
+        
+        total_prestaciones = sum(p['monto'] for p in prests)
+        total_facturas = sum(f['monto_total'] for f in facts if f['estado'].upper() == 'ACTIVO')
+        total_banco = sum(b['credito'] for b in bancos)
+        
+        tiene_descalces = False
+        # Si la suma de prestaciones o facturas no coincide con lo cobrado en banco
+        if len(prests) > 0 or len(facts) > 0 or len(bancos) > 0:
+            referencia = total_prestaciones if total_prestaciones > 0 else total_facturas
+            if abs(referencia - total_banco) > 0.05:
+                tiene_descalces = True
+                
+        # Si hay depósitos huérfanos sin prestaciones ni facturas
+        deposito_huerfano = len(prests) == 0 and len(facts) == 0 and len(bancos) > 0
+        
+        # Si hay prestaciones sin conciliar (pendientes)
+        tiene_pendientes = any(p['estado_conciliacion'] != 'CONCILIADO' for p in prests)
+        
+        estado_filtro = "bien"
+        # Si tiene discrepancias, descuadres financieros o depósitos sin registrar es "problemas"
+        if tiene_discrepancias or tiene_descalces or deposito_huerfano or tiene_pendientes:
+            estado_filtro = "problemas"
+            
+        clientes_list.append({
+            "cuit_hash": c_hash,
+            "cuit": cuit,
+            "nombre": nombre,
+            "categoria": c['categoria'],
+            "estado_filtro": estado_filtro,
+            "total_prestado": total_prestaciones,
+            "total_facturado": total_facturas,
+            "total_cobrado": total_banco
+        })
+        
+    conn.close()
     return clientes_list
 
 
