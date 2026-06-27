@@ -17,6 +17,22 @@ def clean_cuit(cuit_val) -> str:
     digits = "".join(filter(str.isdigit, str(cuit_val)))
     return digits.lstrip('0')
 
+def clean_factura_nro(fact_nro) -> str:
+    """Extrae el número secuencial de la factura quitando prefijos de punto de venta (ej: '5-1499' -> '1499')."""
+    if not fact_nro or pd.isna(fact_nro):
+        return ""
+    fact_str = str(fact_nro).strip()
+    if not fact_str or fact_str.lower() in ['nan', 'none']:
+        return ""
+        
+    if '-' in fact_str:
+        parts = fact_str.split('-')
+        digits = "".join(filter(str.isdigit, parts[-1]))
+        return str(int(digits)) if digits else ""
+    
+    digits = "".join(filter(str.isdigit, fact_str))
+    return str(int(digits)) if digits else ""
+
 def extract_cuit_and_name_from_bank_detail(detail: str) -> tuple[str, str]:
     """
     Intenta extraer el CUIT/DNI y Razón Social/Nombre del detalle del movimiento bancario.
@@ -63,9 +79,12 @@ def load_afip_ventas(ventas_txt_path: str, mes_auditoria: str) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    file_name = os.path.basename(ventas_txt_path)
     count = 0
+    line_idx = 0
     with open(ventas_txt_path, 'r', encoding='latin1') as f:
         for line in f:
+            line_idx += 1
             if len(line) < 123:
                 continue
                 
@@ -103,9 +122,9 @@ def load_afip_ventas(ventas_txt_path: str, mes_auditoria: str) -> int:
             cursor.execute("SELECT comprobante_id FROM facturas WHERE comprobante_id = ?", (comprobante_id,))
             if not cursor.fetchone():
                 cursor.execute("""
-                INSERT INTO facturas (comprobante_id, cuit_hash, cuit_txt, fecha_emision, monto_total, tipo_comprobante, mes_auditoria)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (comprobante_id, c_hash, cuit_clean, fecha, monto, tipo_comp, mes_auditoria))
+                INSERT INTO facturas (comprobante_id, cuit_hash, cuit_txt, fecha_emision, monto_total, tipo_comprobante, mes_auditoria, archivo_origen, nro_fila)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (comprobante_id, c_hash, cuit_clean, fecha, monto, tipo_comp, mes_auditoria, file_name, line_idx))
                 count += 1
                 
     conn.commit()
@@ -176,6 +195,8 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    file_name = os.path.basename(excel_path)
+    
     # Hacer la carga de prestaciones de gestión de este período limpia/idempotente
     cursor.execute("DELETE FROM prestaciones WHERE mes_auditoria = ?", (mes_auditoria,))
     
@@ -198,38 +219,24 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
             
         monto = float(row.get(monto_col))
         tipo = str(row.get(tipo_col)) if not pd.isna(row.get(tipo_col)) else ""
-        factura_nro = str(row.get(fact_col)).strip() if not pd.isna(row.get(fact_col)) else ""
         
-        # Procesar fechas
-        fecha_raw = row.get(fecha_col)
+        # Intentar formatear la fecha
         fecha_prestacion = ""
+        fecha_raw = row.get(fecha_col) if fecha_col else None
         if isinstance(fecha_raw, datetime):
             fecha_prestacion = fecha_raw.strftime("%Y-%m-%d")
         elif pd.notna(fecha_raw):
             fecha_prestacion = str(fecha_raw).split(" ")[0]
             
-        # Período y Paciente (si existen)
-        paciente = str(row.get('PACIENTE')).strip() if 'PACIENTE' in df.columns and pd.notna(row.get('PACIENTE')) else ""
-        periodo_raw = str(row.get('PERIODO')).strip().upper() if 'PERIODO' in df.columns and pd.notna(row.get('PERIODO')) else ""
+        factura_nro = clean_factura_nro(row.get(fact_col)) if fact_col else ""
         
-        MONTH_MAP = {
-            'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 
-            'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'SETIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
-        }
-        
-        # Verificar si es un mes estándar
-        is_valid_month = False
-        for m in MONTH_MAP:
-            if m in periodo_raw:
-                is_valid_month = True
-                break
-                
-        if is_valid_month:
-            periodo = periodo_raw
-        else:
-            # Intentar deducir del campo fecha_factura (fecha_prestacion)
+        # Limpieza de período contable
+        periodo_raw = str(row.get('PERIODO')).strip() if 'PERIODO' in df.columns and pd.notna(row.get('PERIODO')) else ""
+        periodo = periodo_raw
+        if not periodo_raw or periodo_raw.lower() in ['nan', 'none']:
+            # Deducir del mes de la fecha de prestación
             deduced = ""
-            if fecha_prestacion: # YYYY-MM-DD
+            if fecha_prestacion:
                 try:
                     f_month = fecha_prestacion.split('-')[1]
                     meses_esp = {
@@ -240,19 +247,7 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
                     deduced = meses_esp.get(f_month, "")
                 except Exception:
                     pass
-            # Si no hay fecha de factura, intentar deducir de mes_auditoria
-            if not deduced:
-                try:
-                    f_month = mes_auditoria.split('-')[1]
-                    meses_esp = {
-                        "01": "ENERO", "02": "FEBRERO", "03": "MARZO", "04": "ABRIL",
-                        "05": "MAYO", "06": "JUNIO", "07": "JULIO", "08": "AGOSTO",
-                        "09": "SETIEMBRE", "10": "OCTUBRE", "11": "NOVIEMBRE", "12": "DICIEMBRE"
-                    }
-                    deduced = meses_esp.get(f_month, "")
-                except Exception:
-                    pass
-            periodo = deduced if deduced else (periodo_raw if periodo_raw else "DESCONOCIDO")
+            periodo = deduced if deduced else "DESCONOCIDO"
         
         # Fecha de cobro registrada en Excel
         fecha_pago = ""
@@ -263,14 +258,15 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
             fecha_pago = str(fecha_pago_raw).split(" ")[0]
             
         forma_pago = str(row.get('FORMA DE PAGO')).strip() if 'FORMA DE PAGO' in df.columns and pd.notna(row.get('FORMA DE PAGO')) else ""
+        paciente = str(row.get('PACIENTE')).strip() if 'PACIENTE' in df.columns and pd.notna(row.get('PACIENTE')) else ""
         
         # Insertar prestación
         cursor.execute("""
         INSERT INTO prestaciones (
             obra_social_nombre, paciente, fecha_factura, periodo, monto, 
-            factura_nro, forma_pago, fecha_pago, mes_auditoria
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (obra_social, paciente, fecha_prestacion, periodo, monto, factura_nro, forma_pago, fecha_pago, mes_auditoria))
+            factura_nro, forma_pago, fecha_pago, mes_auditoria, archivo_origen, nro_fila
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (obra_social, paciente, fecha_prestacion, periodo, monto, factura_nro, forma_pago, fecha_pago, mes_auditoria, file_name, idx + 2))
         count += 1
         
     conn.commit()
@@ -292,6 +288,7 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    file_name = os.path.basename(excel_path)
     count = 0
     for idx, row in df.iterrows():
         fecha_raw = row.get('Fecha')
@@ -346,9 +343,9 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
             cursor.execute("""
             INSERT INTO movimientos_banco (
                 fecha, hora, concepto, detalle, debito, credito, saldo, 
-                cuit_hash_asociado, cuit_txt_asociado, mes_auditoria
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (fecha, hora, concepto, detalle, debito, credito, saldo, c_hash, cuit_asociado if cuit_asociado else None, mes_transaccion))
+                cuit_hash_asociado, cuit_txt_asociado, mes_auditoria, archivo_origen, nro_fila
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (fecha, hora, concepto, detalle, debito, credito, saldo, c_hash, cuit_asociado if cuit_asociado else None, mes_transaccion, file_name, idx + 2))
             count += 1
         
     conn.commit()

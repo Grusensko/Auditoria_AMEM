@@ -4,3 +4,6 @@ cryptography
 openpyxl
 xlsxwriter
 plotly
+fastapi
+uvicorn
+python-multipart

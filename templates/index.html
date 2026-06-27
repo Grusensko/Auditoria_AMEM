@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMEM — Consola de Auditoría Inteligente</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Estilos CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-screen" class="screen active">
+        <div class="login-card-container">
+            <div class="login-card">
+                <h2>📊 AMEM Mendoza</h2>
+                <p class="login-subtitle">Consola de Auditoría Inteligente</p>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="username">Usuario</label>
+                        <input type="text" id="username" placeholder="admin o consulta" required autocomplete="off">
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error" class="error-msg"></div>
+                    <button type="submit" class="btn-primary">Iniciar Sesión</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE APLICACIÓN PRINCIPAL -->
+    <div id="app-screen" class="screen">
+        
+        <!-- SIDEBAR DE NAVEGACIÓN -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-logo">📊</span>
+                <span class="brand-text">AMEM</span>
+            </div>
+            <nav class="sidebar-menu">
+                <button class="menu-item active" data-target="view-dashboard">
+                    <span class="menu-icon">📈</span>
+                    <span class="menu-text">Dashboard</span>
+                </button>
+                <button class="menu-item" data-target="view-conciliacion">
+                    <span class="menu-icon">⚖️</span>
+                    <span class="menu-text">Conciliación</span>
+                </button>
+                <button class="menu-item" data-target="view-clientes">
+                    <span class="menu-icon">🔍</span>
+                    <span class="menu-text">Clientes</span>
+                </button>
+                <button id="nav-importar" class="menu-item" data-target="view-importar">
+                    <span class="menu-icon">📂</span>
+                    <span class="menu-text">Cargar Datos</span>
+                </button>
+                <button class="menu-item" data-target="view-reportes">
+                    <span class="menu-icon">📥</span>
+                    <span class="menu-text">Exportar</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-badge">
+                    <div class="avatar" id="user-avatar">A</div>
+                    <div class="user-info">
+                        <span class="user-name" id="user-name-display">Admin</span>
+                        <span class="user-role" id="user-role-display">auditor</span>
+                    </div>
+                </div>
+                <button id="logout-btn" class="btn-logout" title="Cerrar Sesión">🚪 Salir</button>
+            </div>
+        </aside>
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <main class="main-content">
+            
+            <!-- HEADER DE APLICACIÓN -->
+            <header class="app-header">
+                <div class="header-left">
+                    <div class="badge-status">
+                        <span class="badge-dot green"></span>
+                        <span class="badge-text">Auditoría Conectada</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- SECCIÓN 1: DASHBOARD -->
+            <section id="view-dashboard" class="view-pane active">
+                <div class="dashboard-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h2 class="view-title" style="font-size: 24px; font-weight: 700;">📊 Resumen de Auditoría</h2>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="period-label" style="font-size: 11px; margin-bottom: 0;">Período:</span>
+                        <select class="period-select period-select-sync" style="padding: 6px 12px; font-size: 13px; font-weight: 600; border-radius: 8px;">
+                            <!-- Se carga dinámicamente -->
+                        </select>
+                    </div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card border-blue">
+                        <span class="kpi-title">Total Ingresado (Banco)</span>
+                        <h2 class="kpi-value" id="kpi-total-banco">$0.00</h2>
+                        <span class="kpi-subtitle" id="kpi-cant-banco">0 depósitos registrados</span>
+                    </div>
+                    <div class="kpi-card border-green">
+                        <span class="kpi-title">Ingresos Conciliados (Match)</span>
+                        <h2 class="kpi-value color-green" id="kpi-conciliado">$0.00</h2>
+                        <span class="kpi-subtitle" id="kpi-cant-conciliado">0 cobros ok (100% exacto)</span>
+                    </div>
+                    <div class="kpi-card border-orange">
+                        <span class="kpi-title">Ingresos Sin Identificar</span>
+                        <h2 class="kpi-value color-orange" id="kpi-sin-id">$0.00</h2>
+                        <span class="kpi-subtitle" id="kpi-cant-sin-id">0 cobros en banco sin asociar</span>
+                    </div>
+                    <div class="kpi-card border-red">
+                        <span class="kpi-title">Discrepancias de Monto</span>
+                        <h2 class="kpi-value color-red" id="kpi-discrepante">$0.00</h2>
+                        <span class="kpi-subtitle" id="kpi-cant-discrepante">0 inconsistencias detectadas</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts">
+                    <div class="chart-card">
+                        <h3>Eficiencia de Conciliación</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-pie-efficiency"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Desglose de Caja ($)</h3>
+                        <div class="chart-container">
+                            <canvas id="chart-bar-waterfall"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="deuda-summary">
+                    <h3>Cuentas por Cobrar e Historial Pendiente</h3>
+                    <div class="kpi-grid" style="margin-top: 15px;">
+                        <div class="kpi-card border-orange bg-card">
+                            <span class="kpi-title">Pendiente de Facturación (Gestión ➔ AFIP)</span>
+                            <h2 class="kpi-value color-orange" id="kpi-deuda-facturar">$0.00</h2>
+                            <span class="kpi-subtitle" id="kpi-cant-deuda-facturar">0 prestaciones sin factura</span>
+                        </div>
+                        <div class="kpi-card border-red bg-card">
+                            <span class="kpi-title">Pendiente de Liquidación/Cobro (AFIP ➔ Banco)</span>
+                            <h2 class="kpi-value color-red" id="kpi-deuda-cobrar">$0.00</h2>
+                            <span class="kpi-subtitle" id="kpi-cant-deuda-cobrar">0 facturas sin depósito identificado</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 2: CONCILIACIÓN MAESTRO-DETALLE -->
+            <section id="view-conciliacion" class="view-pane">
+                <!-- Selector de camino / flujo contable -->
+                <div class="flow-selector-container">
+                    <div class="flow-selector">
+                        <button class="flow-btn active" id="flow-btn-a">⚖️ De Facturas a Cobros</button>
+                        <button class="flow-btn" id="flow-btn-b">🏦 De Cobros a Facturas</button>
+                    </div>
+                </div>
+
+                <div class="master-detail-layout">
+                    
+                    <!-- MAESTRO (Lista Izquierda - 25% ancho) -->
+                    <div class="layout-master">
+                        <div class="master-search-bar">
+                            <input type="text" id="master-search-input" placeholder="🔍 Buscar...">
+                        </div>
+                        <div class="master-filters">
+                            <div class="input-group" style="margin-bottom: 12px;">
+                                <label class="filter-header" style="margin-bottom: 4px;">Período Contable:</label>
+                                <select class="period-select period-select-sync" id="global-period-selector" style="width: 100%; padding: 8px 10px; font-size: 13px; font-weight: 600; border-radius: 8px;">
+                                    <!-- Se carga dinámicamente -->
+                                </select>
+                            </div>
+                            <span class="filter-header">Estados:</span>
+                            <div class="filters-checkbox-grid">
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="chk-master-conciliado"> 🟢 Concil.
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="chk-master-pendiente" checked> 🔵 Pend. Fact
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="chk-master-cobro" checked> 🟡 Pend. Cob
+                                </label>
+                                <label class="filter-checkbox-label">
+                                    <input type="checkbox" id="chk-master-discrepancia" checked> 🔴 Disc.
+                                </label>
+                            </div>
+                        </div>
+                        <div class="master-list-wrapper" id="master-list-container">
+                            <!-- Se inyecta dinámicamente por JS -->
+                        </div>
+                    </div>
+
+                    <!-- DETALLE (Panel Derecho - 75% ancho) -->
+                    <div class="layout-detail" id="detail-panel-container">
+                        <!-- Se inyecta dinámicamente por JS -->
+                        <div class="detail-placeholder">
+                            <span class="placeholder-icon">👈</span>
+                            <p>Selecciona un elemento de la lista para analizar sus detalles y realizar la conciliación manual.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- SECCIÓN 3: CLIENTES -->
+            <section id="view-clientes" class="view-pane">
+                <div class="view-card">
+                    <h3>Buscador e Historial de Clientes</h3>
+                    <p style="opacity: 0.7; margin-bottom: 20px;">Consulta la ficha histórica y los movimientos consolidados de cada cliente u Obra Social.</p>
+                    <div class="master-search-bar" style="margin-bottom: 20px;">
+                        <input type="text" id="clientes-search-input" placeholder="🔍 Buscar por CUIT o Nombre del cliente...">
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="clientes-table">
+                            <thead>
+                                <tr>
+                                    <th>CUIT/CUIL</th>
+                                    <th>Cliente / Obra Social</th>
+                                    <th>Categoría</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Se carga dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- FICHA DE CLIENTE SELECCIONADO -->
+                <div class="view-card hidden" id="cliente-ficha-container" style="margin-top: 25px;">
+                    <div class="ficha-header">
+                        <div>
+                            <h3 id="ficha-cliente-nombre">Obra Social OSEP</h3>
+                            <span class="ficha-subtitle" id="ficha-cliente-cuit">CUIT: 30-62397816-4</span>
+                        </div>
+                        <button class="btn-secondary" id="btn-cerrar-ficha">❌ Cerrar Ficha</button>
+                    </div>
+                    <div class="ficha-grid">
+                        <div class="ficha-col">
+                            <h4>Prestaciones de Gestión</h4>
+                            <div class="table-compact-wrapper">
+                                <table class="data-table compact" id="ficha-prestaciones-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Paciente</th>
+                                            <th>Período</th>
+                                            <th>Monto</th>
+                                            <th>Factura</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="ficha-col">
+                            <h4>Facturas Emitidas (AFIP)</h4>
+                            <div class="table-compact-wrapper">
+                                <table class="data-table compact" id="ficha-facturas-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Factura ID</th>
+                                            <th>Fecha</th>
+                                            <th>Monto</th>
+                                            <th>Tipo</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="ficha-col">
+                            <h4>Depósitos Recibidos (Banco)</h4>
+                            <div class="table-compact-wrapper">
+                                <table class="data-table compact" id="ficha-banco-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Detalle / Concepto</th>
+                                            <th>Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 4: CARGAR DATOS -->
+            <section id="view-importar" class="view-pane">
+                <div class="view-card">
+                    <h3>Carga e Importación de Archivos</h3>
+                    <p style="opacity: 0.7; margin-bottom: 25px;">Sube los archivos correspondientes al período seleccionado para ejecutar el motor de conciliación.</p>
+                    
+                    <form id="import-form">
+                        <div class="import-grid">
+                            <div class="import-box">
+                                <div class="import-icon">📊</div>
+                                <h4>Planilla de Prestaciones (Excel)</h4>
+                                <p>Sube el Excel con las prestaciones de gestión del mes.</p>
+                                <input type="file" id="file_prest" accept=".xlsx, .xls" class="file-input-raw">
+                            </div>
+                            <div class="import-box">
+                                <div class="import-icon">📄</div>
+                                <h4>Facturación AFIP (VENTAS.txt)</h4>
+                                <p>Sube el archivo VENTAS.txt exportado de AFIP.</p>
+                                <input type="file" id="file_afip" accept=".txt" class="file-input-raw">
+                            </div>
+                            <div class="import-box">
+                                <div class="import-icon">🏦</div>
+                                <h4>Extracto Bancario (Excel)</h4>
+                                <p>Sube el Excel de movimientos de Supervielle.</p>
+                                <input type="file" id="file_banco" accept=".xlsx, .xls" class="file-input-raw">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="margin-top: 30px;">
+                            <button type="submit" class="btn-primary" style="max-width: 300px; margin: 0 auto;" id="btn-submit-import">
+                                <span id="import-btn-text">Procesar Archivos Subidos</span>
+                                <span id="import-spinner" class="spinner-inline hidden"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- REPORTE DE RESULTADOS DE CARGA -->
+                <div class="view-card hidden" id="import-report-container" style="margin-top: 25px;">
+                    <h3>📊 Reporte de Procesamiento y Conciliación</h3>
+                    <div class="report-stats-grid">
+                        <div class="report-stat-box">
+                            <h4 id="rep-prest-count">0</h4>
+                            <span>Prestaciones Cargadas</span>
+                        </div>
+                        <div class="report-stat-box">
+                            <h4 id="rep-afip-count">0</h4>
+                            <span>Facturas AFIP Cargadas</span>
+                        </div>
+                        <div class="report-stat-box">
+                            <h4 id="rep-banco-count">0</h4>
+                            <span>Movimientos Banco Cargados</span>
+                        </div>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid rgba(128,128,128,0.2); margin: 20px 0;">
+                    <h4>Resultados de Conciliación (Período y anteriores):</h4>
+                    <div class="kpi-grid" style="margin-top: 15px;">
+                        <div class="kpi-card border-green bg-card" style="padding: 15px;">
+                            <span class="kpi-title">Conciliados (Match)</span>
+                            <h3 class="kpi-value color-green" id="rep-conc">0</h3>
+                        </div>
+                        <div class="kpi-card border-blue bg-card" style="padding: 15px;">
+                            <span class="kpi-title">Pendientes de Factura</span>
+                            <h3 class="kpi-value color-blue" id="rep-pend-fact">0</h3>
+                        </div>
+                        <div class="kpi-card border-orange bg-card" style="padding: 15px;">
+                            <span class="kpi-title">Pendientes de Cobro</span>
+                            <h3 class="kpi-value color-orange" id="rep-pend-cobro">0</h3>
+                        </div>
+                        <div class="kpi-card border-red bg-card" style="padding: 15px;">
+                            <span class="kpi-title">Discrepancias</span>
+                            <h3 class="kpi-value color-red" id="rep-disc">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 5: REPORTES -->
+            <section id="view-reportes" class="view-pane">
+                <div class="view-card" style="max-width: 600px; margin: 0 auto;">
+                    <div class="import-icon" style="font-size: 40px; text-align: center;">📥</div>
+                    <h3 style="text-align: center; margin-top: 10px;">Exportar Reportes Contables</h3>
+                    <p style="opacity: 0.7; text-align: center; margin-bottom: 25px;">Genera el reporte consolidado de conciliación de tres vías en Excel con colores suaves y formato condicional.</p>
+                    
+                    <div class="report-box-confirm">
+                        <h4 id="report-period-confirm" style="text-align: center; margin-bottom: 15px; font-size: 16px;">Mayo 2026</h4>
+                        <p style="font-size: 13px; opacity: 0.8; text-align: center; margin-bottom: 20px;">Se compilarán todas las prestaciones conciliadas y descalces detectados para generar una planilla descargable.</p>
+                        <button id="btn-download-report" class="btn-primary">📥 Descargar Reporte Excel</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN DE CAMBIOS SIN GUARDAR -->
+    <div id="unsaved-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h3>⚠️ Cambios sin guardar</h3>
+            <p>Tienes modificaciones pendientes en la ficha actual. ¿Qué deseas hacer?</p>
+            <div class="modal-actions">
+                <button id="btn-modal-save" class="btn-primary">💾 Guardar Cambios</button>
+                <button id="btn-modal-discard" class="btn-secondary" style="background-color: var(--color-red-light); color: var(--color-red); border-color: rgba(239, 68, 68, 0.15);">🗑️ Descartar</button>
+                <button id="btn-modal-cancel" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts de Lógica y UI -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

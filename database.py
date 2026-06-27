@@ -162,6 +162,21 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_facturas_cuit_hash ON facturas(cuit_hash)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_movimientos_cuit_hash ON movimientos_banco(cuit_hash_asociado)")
     
+    # Alterar tablas para agregar columnas de procedencia si no existen
+    for table, col, col_type in [
+        ("prestaciones", "archivo_origen", "TEXT"),
+        ("prestaciones", "nro_fila", "INTEGER"),
+        ("facturas", "archivo_origen", "TEXT"),
+        ("facturas", "nro_fila", "INTEGER"),
+        ("movimientos_banco", "archivo_origen", "TEXT"),
+        ("movimientos_banco", "nro_fila", "INTEGER")
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
+        except sqlite3.OperationalError:
+            # La columna ya existe, no hace falta agregarla
+            pass
+    
     # Crear usuario administrador por defecto si la tabla está vacía
     cursor.execute("SELECT COUNT(*) FROM usuarios")
     if cursor.fetchone()[0] == 0:

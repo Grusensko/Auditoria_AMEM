@@ -7,6 +7,18 @@
       "skillPath": "chart-designer/SKILL.md",
       "computedHash": "df44ae89c73df1456aab7e61cf46f2d6d34c9ed016e6747fb9a4c9d596af0f0f"
     },
+    "css-expert": {
+      "source": "rightnow-ai/openfang",
+      "sourceType": "github",
+      "skillPath": "crates/openfang-skills/bundled/css-expert/SKILL.md",
+      "computedHash": "36b6d2641998855df9cc4cdc9c19e83481db716b74a6d246ae3f50dcd216f123"
+    },
+    "interface-details": {
+      "source": "detaildotdesign/skill",
+      "sourceType": "github",
+      "skillPath": "skills/SKILL.md",
+      "computedHash": "6910e31bc3ada16a02ac5c45fb442e8ea47099c785df5b9b9a73851338a8b12b"
+    },
     "responsive-design": {
       "source": "wshobson/agents",
       "sourceType": "github",
