@@ -24,20 +24,23 @@ Este archivo define los comportamientos, reglas del negocio y pautas técnicas q
 1. **Cifrado en Reposo:**
    * Todos los datos personales identificables de clientes (CUIT, Nombre/Razón Social) se deben encriptar antes de guardarse en la base de datos SQLite.
    * Se utiliza criptografía simétrica AES-256 (`cryptography.fernet`).
-   * Para búsquedas e índices, se guarda una columna `cuit_hash` que contiene el SHA256 del CUIT. Las búsquedas en la BD se realizan buscando el hash, evitando desencriptar registros innecesariamente.
+   * Para búsquedas e índices, se guarda una columna `cuit_hash` que contiene el SHA256 del CUIT. Las búsquedas en la BD se realizan buscando el hash, evitando desencrittar registros innecesariamente.
 2. **Secretos y Credenciales:**
    * Las claves criptográficas (como `AMEM_ENCRYPTION_KEY`) se guardan únicamente en variables de entorno o en los secrets de Streamlit. Nunca se suben al código de GitHub.
 
 ---
 
-## 🎨 Estándares de UX-UI (App Streamlit)
+## 🎨 Estándares de UX-UI (Web HTML5 / CSS Vanilla / JS)
 
-1. **Estética Premium:**
-   * Usar diseño moderno con paleta oscura/gris azulado y acentos vibrantes (Verde esmeralda para éxitos/conciliados, Amarillo/Ámbar para pendientes, Rojo carmesí para discrepancias).
-   * Interfaces limpias con tarjetas de KPIs y tablas interactivas.
-2. **Acceso de Roles:**
-   * **Auditor (`admin`):** Acceso total. Puede cargar datos, ejecutar la conciliación automática, editar manualmente los estados y observaciones de cada ítem, y exportar reportes.
-   * **Socio (`socio`):** Acceso de solo lectura al panel de conciliación y visor de clientes. Puede descargar los reportes consolidados en Excel.
+1. **Estética Premium (Tema Claro de Alto Contraste):**
+   * **Colores Base:** Fondo principal off-white (`#F8FAFC`), tarjetas y paneles en blanco puro (`#FFFFFF`) y textos de alto contraste (`#0F172A`).
+   * **Paleta Contable Pastel:** Verde esmeralda suave para Conciliados (éxitos), Ocre pastel para Pendientes de Cobro, Azul pastel para Pendientes de Factura, y Rojo carmesí pastel para Discrepancias.
+   * **Listado Maestro-Detalle:** El listado maestro (28%) a la izquierda y el detalle (72%) a la derecha con scroll independiente.
+2. **Interactividad y Control de Cambios:**
+   * **Deshabilitado Visual:** Los botones de guardado o descarte se inician deshabilitados (opacidad al 50% y `pointer-events: none`). Se activan solo al detectar cambios.
+   * **Línea de Tiempo:** Gráfico horizontal de 120 días con tooltips no desbordados (con clases `.first-event` y `.last-event` para los extremos).
+   * **Trazabilidad:** Cada bloque cuenta con el icono `(i)` que despliega un tooltip con el archivo y la fila/línea de procedencia.
+   * **Modal de Advertencia:** Si hay cambios sin guardar, cualquier acción de navegación despliega el modal de confirmación.
 
 ---
 
@@ -46,5 +49,17 @@ Este archivo define los comportamientos, reglas del negocio y pautas técnicas q
 * `database.py`: Define el esquema SQLite, inicialización y funciones de encriptación/hashing.
 * `loader.py`: Parsea e importa archivos crudos (Excel de prestaciones, VENTAS.txt de AFIP y extracto bancario de Supervielle).
 * `conciliador.py`: Ejecuta el algoritmo de conciliación de tres vías.
-* `excel_exporter.py`: Genera el Excel de reportes con colores suaves y formato condicional para los socios.
-* `app.py`: Interfaz web interactiva en Streamlit.
+* `excel_exporter.py`: Genera el Excel de reportes con colores suaves y formato condicional.
+* `api.py`: Backend y API endpoints en FastAPI.
+* `run.py`: Script lanzador que inicia Uvicorn y abre la interfaz web.
+* `static/css/styles.css` y `static/js/app.js`: Estilos y lógica interactiva de la consola web.
+* `templates/index.html`: Plantilla principal de la consola de auditoría.
+
+---
+
+## 🧠 Sincronización y Trabajo en Multi-Chat (Importante)
+
+Dado que se trabaja con múltiples chats temáticos divididos por sección:
+1. **Rastreo de Cambios Obligatorio:** Antes de modificar el código en cualquier chat, el agente **DEBE** ejecutar `git status` y `git pull` para evitar pisar commits o modificaciones de otros chats.
+2. **Archivos de Planificación en el Workspace:**
+   * Para trabajar en la pestaña de **Clientes** (Relaciones N-a-M, Cuenta Corriente y Conciliación por lotes), el agente debe consultar primero los archivos de diseño [plan_clientes_equilibrio.md](file:///d:/Repositories/AMEM/plan_clientes_equilibrio.md) e [informe_contexto_auditoria.md](file:///d:/Repositories/AMEM/informe_contexto_auditoria.md) creados en el directorio de la conversación para garantizar la continuidad y consistencia del diseño.
