@@ -628,7 +628,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
     
     # 1. Prestaciones
     cursor.execute("""
-        SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria
+        SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
         FROM prestaciones
         WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%'
     """, (f"%{nombre[:5]}%", nombre))
@@ -636,7 +636,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
     
     # 2. Facturas AFIP
     cursor.execute("""
-        SELECT comprobante_id, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria
+        SELECT comprobante_id, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria, archivo_origen, nro_fila
         FROM facturas
         WHERE cuit_hash = ?
     """, (cuit_hash,))
@@ -644,7 +644,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
     
     # 3. Depósitos Banco
     cursor.execute("""
-        SELECT id, fecha, concepto, detalle, credito, mes_auditoria
+        SELECT id, fecha, concepto, detalle, credito, mes_auditoria, archivo_origen, nro_fila
         FROM movimientos_banco
         WHERE cuit_hash_asociado = ?
     """, (cuit_hash,))

@@ -40,7 +40,9 @@ Este archivo define los comportamientos, reglas del negocio y pautas técnicas q
    * **Deshabilitado Visual:** Los botones de guardado o descarte se inician deshabilitados (opacidad al 50% y `pointer-events: none`). Se activan solo al detectar cambios.
    * **Línea de Tiempo:** Gráfico horizontal de 120 días con tooltips no desbordados (con clases `.first-event` y `.last-event` para los extremos).
    * **Trazabilidad:** Cada bloque cuenta con el icono `(i)` que despliega un tooltip con el archivo y la fila/línea de procedencia.
-   * **Modal de Advertencia:** Si hay cambios sin guardar, cualquier acción de navegación despliega el modal de confirmación.
+3. **Pautas de CSS Moderno y Estilo:**
+   * Para cualquier modificación, maquetación o creación de estilos, el agente **DEBE** apegarse estrictamente a las directrices de [CSS_STANDARDS.md](file:///d:/Repositories/AMEM/CSS_STANDARDS.md).
+   * Se requiere el uso de **CSS Grid** para estructuras bidimensionales (como maestro-detalle y layout principal), **Container Queries (`@container`)** y `clamp()` para responsividad fluida sin breakpoints globales, **`subgrid`** para la alineación horizontal de tarjetas/KPIs y el espacio de color **OKLCH (`oklch()`)** para control perceptual de luminosidad y estados visuales coherentes.
 
 ---
 

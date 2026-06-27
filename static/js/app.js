@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let selectedPrestId = null;
     let selectedBancoId = null;
+    let selectedClienteHash = null;
     
     let hasUnsavedChanges = false;
     let pendingAction = null;
@@ -44,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Instancias de Gráficos Chart.js para destruirlas/actualizarlas
     let chartPie = null;
     let chartBar = null;
+    let chartCliente = null;
 
     // --- ELEMENTOS DEL DOM ---
     const loginScreen = document.getElementById("login-screen");
@@ -58,6 +60,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const headerPeriodTitle = document.getElementById("header-period-title");
     
     const logoutBtn = document.getElementById("logout-btn");
+    
+    // Elementos del menú responsive en móviles
+    const menuToggleBtn = document.getElementById("menu-toggle-btn");
+    const appSidebar = document.getElementById("app-sidebar");
+    const sidebarOverlay = document.getElementById("sidebar-overlay");
     
     // Inicializar autenticación desde SessionStorage si existe
     const cachedUser = sessionStorage.getItem("amem_user");
@@ -158,6 +165,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         reportElem.textContent = formatPeriod(currentPeriod);
                     }
                 }
+
+                // Cerrar sidebar en móviles al navegar
+                if (appSidebar && appSidebar.classList.contains("active")) {
+                    appSidebar.classList.remove("active");
+                    if (menuToggleBtn) menuToggleBtn.classList.remove("active");
+                    if (sidebarOverlay) sidebarOverlay.classList.remove("active");
+                }
             };
             
             if (hasUnsavedChanges) {
@@ -168,6 +182,31 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     });
+
+    // Control de apertura/cierre de sidebar en móviles
+    if (menuToggleBtn && appSidebar && sidebarOverlay) {
+        menuToggleBtn.addEventListener("click", () => {
+            const isOpened = menuToggleBtn.classList.contains("active");
+            if (isOpened) {
+                menuToggleBtn.classList.remove("active");
+                appSidebar.classList.remove("active");
+                sidebarOverlay.classList.remove("active");
+                menuToggleBtn.setAttribute("aria-expanded", "false");
+            } else {
+                menuToggleBtn.classList.add("active");
+                appSidebar.classList.add("active");
+                sidebarOverlay.classList.add("active");
+                menuToggleBtn.setAttribute("aria-expanded", "true");
+            }
+        });
+
+        sidebarOverlay.addEventListener("click", () => {
+            menuToggleBtn.classList.remove("active");
+            appSidebar.classList.remove("active");
+            sidebarOverlay.classList.remove("active");
+            menuToggleBtn.setAttribute("aria-expanded", "false");
+        });
+    }
 
     // --- CARGAR PERÍODOS DE AUDITORÍA ---
     async function loadPeriods() {
@@ -1457,54 +1496,222 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- BUSCADOR DE CLIENTES ---
-    const clientSearchInp = document.getElementById("clientes-search-input");
     clientSearchInp.addEventListener("input", () => {
         loadClientes(clientSearchInp.value.trim());
     });
+
+    // Función auxiliar para calcular diferencia de meses para el delay normal
+    function getMonthsDiff(period1, period2) {
+        if (!period1 || !period2) return 0;
+        try {
+            const [y1, m1] = period1.split("-").map(Number);
+            const [y2, m2] = period2.split("-").map(Number);
+            return (y2 - y1) * 12 + (m2 - m1);
+        } catch (e) {
+            return 0;
+        }
+    }
 
     async function loadClientes(query = "") {
         try {
             const res = await fetch(`/api/clientes?query=${encodeURIComponent(query)}`);
             const data = await res.json();
             
-            const tbody = document.querySelector("#clientes-table tbody");
-            tbody.innerHTML = "";
+            const container = document.getElementById("clientes-master-list");
+            container.innerHTML = "";
             
             if (data.length > 0) {
                 data.forEach(c => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td><strong>${c.cuit}</strong></td>
-                        <td>${c.nombre}</td>
-                        <td><span class="status-chip blue">${c.categoria || "Empresa"}</span></td>
-                        <td><button class="btn-secondary btn-compact ver-ficha-btn" data-hash="${c.cuit_hash}" data-nombre="${c.nombre}" style="padding:6px 12px; font-size:11px;">🔍 Ver Ficha</button></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-                
-                // Clic en Ver Ficha
-                document.querySelectorAll(".ver-ficha-btn").forEach(btn => {
+                    const card = document.createElement("div");
+                    const isSelected = c.cuit_hash === selectedClienteHash;
+                    card.className = isSelected ? "selected-button-wrapper" : "normal-button-wrapper";
+                    
+                    let catClass = "blue";
+                    if (c.categoria) {
+                        const catLower = c.categoria.toLowerCase();
+                        if (catLower.includes("obra social") || catLower.includes("os") || catLower.includes("pami") || catLower.includes("osep")) {
+                            catClass = "green";
+                        } else if (catLower.includes("prepaga") || catLower.includes("osde")) {
+                            catClass = "blue";
+                        } else if (catLower.includes("particular") || catLower.includes("privado")) {
+                            catClass = "orange";
+                        }
+                    }
+                    
+                    const btn = document.createElement("button");
+                    btn.innerHTML = `<strong>👤 ${c.nombre}</strong><br>
+                    <span style="opacity:0.8;font-size:11px;">CUIT: ${c.cuit}</span>
+                    <span class="status-chip ${catClass}" style="float: right; font-size: 9px; padding: 2px 6px; margin-top: 2px;">${c.categoria || "Obra Social"}</span>`;
+                    
                     btn.addEventListener("click", () => {
-                        const hash = btn.getAttribute("data-hash");
-                        const nombre = btn.getAttribute("data-nombre");
-                        showClienteFicha(hash, nombre);
+                        selectedClienteHash = c.cuit_hash;
+                        loadClientes(query); // Refrescar selección en maestro
+                        showClienteFicha(c.cuit_hash, c.nombre, c.categoria || "Obra Social");
                     });
+                    
+                    card.appendChild(btn);
+                    container.appendChild(card);
                 });
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No se encontraron clientes</td></tr>`;
+                container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No se encontraron clientes</div>`;
             }
         } catch (e) { console.error(e); }
     }
 
-    async function showClienteFicha(cuitHash, nombre) {
+    async function showClienteFicha(cuitHash, nombre, categoria) {
         try {
+            // Ocultar placeholder y mostrar ficha
+            document.getElementById("clientes-placeholder").classList.add("hidden");
+            const fichaContainer = document.getElementById("cliente-ficha-container");
+            fichaContainer.classList.remove("hidden");
+            
             const res = await fetch(`/api/cliente/ficha?cuit_hash=${cuitHash}&nombre=${encodeURIComponent(nombre)}`);
             const data = await res.json();
             
             document.getElementById("ficha-cliente-nombre").textContent = nombre;
-            document.getElementById("ficha-cliente-cuit").textContent = `Hash CUIT: ${cuitHash.substring(0, 15)}...`;
+            document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitHash.substring(0, 2) === "30" || cuitHash.length > 20 ? cuitHash : "Cifrado en BD"}`;
             
-            // 1. Prestaciones
+            const catBadge = document.getElementById("ficha-cliente-categoria-badge");
+            catBadge.textContent = categoria;
+            let catClass = "blue";
+            const catLower = categoria.toLowerCase();
+            if (catLower.includes("obra social") || catLower.includes("os")) catClass = "green";
+            else if (catLower.includes("prepaga")) catClass = "blue";
+            else if (catLower.includes("particular")) catClass = "orange";
+            catBadge.className = `status-chip ${catClass}`;
+
+            // Calcular montos totales para cada columna
+            const totalPrestaciones = data.prestaciones.reduce((sum, p) => sum + p.monto, 0);
+            const totalFacturas = data.facturas.reduce((sum, f) => sum + (f.estado === "ACTIVO" ? f.monto_total : 0), 0);
+            const totalBanco = data.banco.reduce((sum, b) => sum + b.credito, 0);
+
+            document.getElementById("col-prest-monto-total").textContent = formatCurrency(totalPrestaciones);
+            document.getElementById("col-fact-monto-total").textContent = formatCurrency(totalFacturas);
+            document.getElementById("col-banco-monto-total").textContent = formatCurrency(totalBanco);
+
+            // Clasificar prestaciones para el gráfico de delay y conciliación
+            let montoConciliado = 0;
+            let montoDelayNormal = 0;
+            let montoDelayExcedido = 0;
+
+            data.prestaciones.forEach(p => {
+                if (p.estado_conciliacion === "CONCILIADO") {
+                    montoConciliado += p.monto;
+                } else {
+                    // Si no está conciliado, evaluar el delay contable
+                    // Tomamos como referencia el período actual (ej: "2026-05")
+                    const diff = getMonthsDiff(p.mes_auditoria, currentPeriod);
+                    if (diff <= 3) {
+                        montoDelayNormal += p.monto;
+                    } else {
+                        montoDelayExcedido += p.monto;
+                    }
+                }
+            });
+
+            // Actualizar Leyenda dinámica del gráfico
+            const pctConciliado = totalPrestaciones > 0 ? ((montoConciliado / totalPrestaciones) * 100).toFixed(1) : "0.0";
+            const pctDelayNormal = totalPrestaciones > 0 ? ((montoDelayNormal / totalPrestaciones) * 100).toFixed(1) : "0.0";
+            const pctDelayExcedido = totalPrestaciones > 0 ? ((montoDelayExcedido / totalPrestaciones) * 100).toFixed(1) : "0.0";
+
+            const legendContainer = document.getElementById("chart-cliente-legend");
+            legendContainer.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
+                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
+                        <span style="width:10px; height:10px; border-radius:50%; background-color:#047857; display:inline-block;"></span>
+                        Conciliado (Match 3 Vías)
+                    </span>
+                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoConciliado)} (${pctConciliado}%)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
+                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
+                        <span style="width:10px; height:10px; border-radius:50%; background-color:#1D4ED8; display:inline-block;"></span>
+                        Faltante en Delay Normal (&le; 90d)
+                    </span>
+                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoDelayNormal)} (${pctDelayNormal}%)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
+                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
+                        <span style="width:10px; height:10px; border-radius:50%; background-color:#B91C1C; display:inline-block;"></span>
+                        Faltante Fuera de Delay (&gt; 90d)
+                    </span>
+                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoDelayExcedido)} (${pctDelayExcedido}%)</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 6px 0; border-top:1px solid rgba(128,128,128,0.2); margin-top:5px;">
+                    <span style="font-weight:700; color:var(--text-secondary);">Total Prestaciones</span>
+                    <span style="font-weight:800; color:var(--text-primary); font-family:monospace;">${formatCurrency(totalPrestaciones)} (100.0%)</span>
+                </div>
+            `;
+
+            // Dibujar gráfico horizontal apilado en Chart.js
+            if (chartCliente) {
+                chartCliente.destroy();
+            }
+            
+            const ctx = document.getElementById("chart-cliente-cobertura").getContext("2d");
+            chartCliente = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [''],
+                    datasets: [
+                        {
+                            label: 'Conciliado',
+                            data: [montoConciliado],
+                            backgroundColor: '#047857',
+                            borderRadius: { topLeft: 6, bottomLeft: 6, topRight: 0, bottomRight: 0 }
+                        },
+                        {
+                            label: 'Delay Normal',
+                            data: [montoDelayNormal],
+                            backgroundColor: '#1D4ED8',
+                            borderRadius: 0
+                        },
+                        {
+                            label: 'Delay Excedido',
+                            data: [montoDelayExcedido],
+                            backgroundColor: '#B91C1C',
+                            borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 6, bottomRight: 6 }
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const pct = totalPrestaciones > 0 ? ((val / totalPrestaciones) * 100).toFixed(1) : "0.0";
+                                    return `${context.dataset.label}: ${formatCurrency(val)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            max: totalPrestaciones > 0 ? totalPrestaciones : 100,
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(val) {
+                                    return formatCurrency(val);
+                                },
+                                color: '#475569',
+                                font: { size: 9 }
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // 1. Renderizar Prestaciones (Vía 1)
             const tbodyP = document.querySelector("#ficha-prestaciones-table tbody");
             tbodyP.innerHTML = "";
             if (data.prestaciones.length > 0) {
@@ -1516,19 +1723,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${p.paciente}</td>
+                        <td><strong>${p.paciente}</strong></td>
                         <td>${formatPeriod(p.periodo)}</td>
                         <td>${formatCurrency(p.monto)}</td>
-                        <td>${p.factura_nro || "Sin factura"}</td>
                         <td><span class="status-chip ${chipCol}">${p.estado_conciliacion}</span></td>
+                        <td style="position: relative; text-align: center;">
+                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
+                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                                <strong>Procedencia:</strong><br>
+                                📝 Archivo: ${p.archivo_origen || "Desconocido"}<br>
+                                📍 Fila: ${p.nro_fila || "—"}
+                            </div>
+                        </td>
                     `;
                     tbodyP.appendChild(tr);
                 });
             } else {
-                tbodyP.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin prestaciones registradas</td></tr>`;
+                tbodyP.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:15px;">Sin prestaciones registradas</td></tr>`;
             }
             
-            // 2. Facturas AFIP
+            // 2. Renderizar Facturas (Vía 2)
             const tbodyF = document.querySelector("#ficha-facturas-table tbody");
             tbodyF.innerHTML = "";
             if (data.facturas.length > 0) {
@@ -1536,19 +1750,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     const isAct = f.estado.toUpperCase() === "ACTIVO";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td>${f.comprobante_id}</td>
+                        <td style="font-family: monospace; font-size: 11px;">${f.comprobante_id}</td>
                         <td>${f.fecha_emision}</td>
                         <td>${formatCurrency(f.monto_total)}</td>
-                        <td>${f.tipo_comprobante}</td>
                         <td><span class="status-chip ${isAct ? 'green' : 'red'}">${f.estado}</span></td>
+                        <td style="position: relative; text-align: center;">
+                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
+                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                                <strong>Procedencia:</strong><br>
+                                📄 Archivo: ${f.archivo_origen || "Desconocido"}<br>
+                                📍 Fila: ${f.nro_fila || "—"}
+                            </div>
+                        </td>
                     `;
                     tbodyF.appendChild(tr);
                 });
             } else {
-                tbodyF.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin facturas registradas en AFIP</td></tr>`;
+                tbodyF.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:15px;">Sin facturas registradas</td></tr>`;
             }
             
-            // 3. Banco
+            // 3. Renderizar Banco (Vía 3)
             const tbodyB = document.querySelector("#ficha-banco-table tbody");
             tbodyB.innerHTML = "";
             if (data.banco.length > 0) {
@@ -1556,24 +1777,33 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${b.fecha}</td>
-                        <td>${b.concepto} ${b.detalle || ""}</td>
+                        <td style="font-size: 11px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</td>
                         <td><strong style="color:var(--color-green);">${formatCurrency(b.credito)}</strong></td>
+                        <td style="position: relative; text-align: center;">
+                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
+                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                                <strong>Procedencia:</strong><br>
+                                🏦 Archivo: ${b.archivo_origen || "Desconocido"}<br>
+                                📍 Fila: ${b.nro_fila || "—"}
+                            </div>
+                        </td>
                     `;
                     tbodyB.appendChild(tr);
                 });
             } else {
-                tbodyB.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Sin depósitos identificados</td></tr>`;
+                tbodyB.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:15px;">Sin depósitos identificados</td></tr>`;
             }
             
-            // Mostrar ficha
-            document.getElementById("cliente-ficha-container").classList.remove("hidden");
-            // Scroll a la ficha
-            document.getElementById("cliente-ficha-container").scrollIntoView({ behavior: 'smooth' });
+            // Auto-scroll suave hacia el panel de detalle en pantallas chicas
+            document.getElementById("clientes-detail-panel").scrollTop = 0;
         } catch (e) { console.error(e); }
     }
 
     document.getElementById("btn-cerrar-ficha").addEventListener("click", () => {
         document.getElementById("cliente-ficha-container").classList.add("hidden");
+        document.getElementById("clientes-placeholder").classList.remove("hidden");
+        selectedClienteHash = null;
+        loadClientes(clientSearchInp.value.trim()); // Refrescar maestro para quitar selección
     });
 
     // --- CARGAR / IMPORTAR ARCHIVOS ---

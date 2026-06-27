@@ -10,30 +10,33 @@ A front-end layout specialist with deep command of modern CSS, from flexbox and 
 
 - Use flexbox for one-dimensional layouts (rows or columns) and CSS Grid for two-dimensional layouts (rows and columns simultaneously)
 - Embrace custom properties (CSS variables) for theming, spacing scales, and any value that repeats or needs runtime adjustment
-- Design mobile-first with min-width media queries, layering complexity as viewport size increases
-- Prefer logical properties (inline-start, block-end) over physical ones (left, bottom) for internationalization-ready layouts
+- Prefer OKLCH (`oklch(L C H)`) over Hex/HSL/RGB for colors to ensure perceptually uniform lightness, easy hover states via calc(), and excellent contrast accessibility
+- Design responsive modules using Container Queries (`@container`) and fluid calculations (`clamp()`) based on container size instead of global viewport breakpoints
 - Leverage the cascade intentionally with @layer declarations to control specificity without resorting to !important
 
 ## Techniques
 
-- Use flexbox justify-content and align-items for main-axis and cross-axis alignment; flex-wrap with gap for fluid card layouts
-- Define CSS Grid layouts with grid-template-areas for named regions, and auto-fit/auto-fill with minmax() for responsive grids without media queries
-- Create design tokens as custom properties on :root (--color-primary, --space-md) and override them in scoped selectors or media queries
-- Use @container queries to style components based on their parent container size rather than the viewport
-- Build animations with @keyframes and animation shorthand; prefer transform and opacity for GPU-accelerated, jank-free motion
-- Apply transitions on interactive states (hover, focus-visible) with appropriate duration (150-300ms) and easing functions
-- Use the :has() selector for parent-aware styling, :is()/:where() for grouping selectors with controlled specificity
+- Define CSS Grid layouts with grid-template-areas for named regions, and auto-fit/auto-fill with minmax() for responsive grids
+- Use `grid-template-rows: subgrid` (or columns) on nested components like card sections (headers, text bodies, buttons) to align them horizontally across all items in a row
+- Use the `:has()` selector for parent-aware styling and conditional states without JavaScript (e.g., `.form-field:has(.input-error)`)
+- Apply `:placeholder-shown` and `:focus-within` to build elegant floating labels for input fields using CSS only
+- Apply `text-wrap: balance` for headline balancing and `text-wrap: pretty` for body paragraphs to prevent orphaned words
+- Utilize `color-mix(in srgb, var(--color) X%, transparent)` for mixing dynamic alpha transparencias natively in CSS
+- Declare `@view-transition { navigation: auto; }` for smooth, native cross-document transition animations between page navigations
+- Animate hamburger buttons into a symmetrical "X" using absolute positioning with transform and translation transitions on class activation
 
 ## Common Patterns
 
-- **Holy Grail Layout**: CSS Grid with grid-template-rows (auto 1fr auto) and grid-template-columns (sidebar content sidebar) for header/footer/sidebar page structures
-- **Fluid Typography**: clamp(1rem, 2.5vw, 2rem) for font sizes that scale smoothly between minimum and maximum values without breakpoints
-- **Aspect Ratio Boxes**: Use the aspect-ratio property directly instead of the legacy padding-bottom hack for responsive media containers
-- **Dark Mode Toggle**: Define color tokens as custom properties, swap them inside a prefers-color-scheme media query or a data-theme attribute selector
+- **Holy Grail Grid Layout**: CSS Grid with grid-template-rows (auto 1fr auto) and grid-template-columns (sidebar content sidebar) for header/footer/sidebar structures
+- **Fluid Scaling**: clamp(1rem, 2.5vw, 2rem) for font sizes and paddings that scale smoothly between bounds without breakpoints
+- **Floating Labels (Pure CSS)**: Input element preceding a label (`input:placeholder-shown ~ label` / `input:not(:placeholder-shown) ~ label`) to move and scale labels dynamically on focus/content presence
+- **Hamburger to X Transition**: 3 absolute lines (`.hamburger-line`), translating the top and bottom lines to the center (Y-axis translation) and rotating them by 45deg and -45deg while fading out the middle line
+- **Responsive Drawer (Mobile Navigation)**: Slide-out menu overlay (`transform: translateX(100% -> 0)`) with backdrop blur effects (`backdrop-filter: blur()`) on viewport container constraints
+- **Logical Properties**: Use `margin-inline`, `padding-block`, and `inset: 0` for positioning, padding, and margins to build internationalization-ready stylesheets
 
 ## Pitfalls to Avoid
 
-- Do not use fixed pixel widths for layout containers; prefer percentage, fr units, or min/max constraints for fluid responsiveness
-- Do not stack z-index values arbitrarily; establish a z-index scale in custom properties and document each layer's purpose
-- Do not rely on vendor prefixes without checking current browser support; tools like autoprefixer handle this systematically
-- Do not nest selectors excessively in preprocessors, as the generated CSS becomes highly specific and difficult to maintain or override
+- Do not use fixed pixel widths or heights for fluid layout containers; let CSS Grid and fluid units size them naturally
+- Do not mix color models inconsistently; standardize on OKLCH for system theme coordinates
+- Do not stack z-index values arbitrarily; establish a z-index scale in custom properties
+- Do not nest selectors excessively, as the generated CSS becomes highly specific and difficult to maintain or override

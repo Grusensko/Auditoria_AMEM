@@ -11,7 +11,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Estilos CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.0">
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <div id="app-screen" class="screen">
         
         <!-- SIDEBAR DE NAVEGACIÓN -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="app-sidebar">
             <div class="sidebar-brand">
                 <span class="brand-logo">📊</span>
                 <span class="brand-text">AMEM</span>
@@ -80,11 +80,21 @@
             </div>
         </aside>
 
+        <!-- OVERLAY PARA SIDEBAR MÓVIL -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
             
             <!-- HEADER DE APLICACIÓN -->
             <header class="app-header">
+                <!-- Botón de Control del Menú Móvil -->
+                <button class="menu-toggle" id="menu-toggle-btn" aria-label="Alternar menú de navegación" aria-expanded="false">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
+                
                 <div class="header-left">
                     <div class="badge-status">
                         <span class="badge-dot green"></span>
@@ -218,86 +228,123 @@
 
             <!-- SECCIÓN 3: CLIENTES -->
             <section id="view-clientes" class="view-pane">
-                <div class="view-card">
-                    <h3>Buscador e Historial de Clientes</h3>
-                    <p style="opacity: 0.7; margin-bottom: 20px;">Consulta la ficha histórica y los movimientos consolidados de cada cliente u Obra Social.</p>
-                    <div class="master-search-bar" style="margin-bottom: 20px;">
-                        <input type="text" id="clientes-search-input" placeholder="🔍 Buscar por CUIT o Nombre del cliente...">
+                <div class="master-detail-layout">
+                    
+                    <!-- MAESTRO (Lista Izquierda - 28% ancho) -->
+                    <div class="layout-master">
+                        <div class="master-search-bar">
+                            <input type="text" id="clientes-search-input" placeholder="🔍 Buscar por CUIT o Nombre...">
+                        </div>
+                        <div class="master-list-wrapper" id="clientes-master-list" style="padding: 10px;">
+                            <!-- Se carga dinámicamente -->
+                        </div>
                     </div>
-                    <div class="table-wrapper">
-                        <table class="data-table" id="clientes-table">
-                            <thead>
-                                <tr>
-                                    <th>CUIT/CUIL</th>
-                                    <th>Cliente / Obra Social</th>
-                                    <th>Categoría</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Se carga dinámicamente -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <!-- FICHA DE CLIENTE SELECCIONADO -->
-                <div class="view-card hidden" id="cliente-ficha-container" style="margin-top: 25px;">
-                    <div class="ficha-header">
-                        <div>
-                            <h3 id="ficha-cliente-nombre">Obra Social OSEP</h3>
-                            <span class="ficha-subtitle" id="ficha-cliente-cuit">CUIT: 30-62397816-4</span>
+                    <!-- DETALLE (Panel Derecho - 72% ancho) -->
+                    <div class="layout-detail" id="clientes-detail-panel" style="padding: 10px;">
+                        
+                        <!-- PLACEHOLDER INICIAL -->
+                        <div class="detail-placeholder" id="clientes-placeholder" style="margin-top: 10px;">
+                            <span class="placeholder-icon">👈</span>
+                            <p>Selecciona un cliente de la lista para analizar su ficha histórica, gráfico de delay de conciliación y movimientos.</p>
                         </div>
-                        <button class="btn-secondary" id="btn-cerrar-ficha">❌ Cerrar Ficha</button>
-                    </div>
-                    <div class="ficha-grid">
-                        <div class="ficha-col">
-                            <h4>Prestaciones de Gestión</h4>
-                            <div class="table-compact-wrapper">
-                                <table class="data-table compact" id="ficha-prestaciones-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Paciente</th>
-                                            <th>Período</th>
-                                            <th>Monto</th>
-                                            <th>Factura</th>
-                                            <th>Estado</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                        
+                        <!-- FICHA DE CLIENTE SELECCIONADO (Oculta por defecto) -->
+                        <div class="view-card hidden" id="cliente-ficha-container" style="margin-bottom: 0; padding: 20px;">
+                            <div class="ficha-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+                                <div>
+                                    <h3 id="ficha-cliente-nombre" style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0 0 5px 0;">Obra Social OSEP</h3>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span class="ficha-subtitle" id="ficha-cliente-cuit" style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">CUIT: 30-62397816-4</span>
+                                        <span id="ficha-cliente-categoria-badge" class="status-chip blue" style="font-size: 10px; padding: 2px 6px;">Obra Social</span>
+                                    </div>
+                                </div>
+                                <button class="btn-secondary" id="btn-cerrar-ficha" style="padding: 8px 14px; font-size: 12px; font-weight: 600;">❌ Cerrar Ficha</button>
                             </div>
-                        </div>
-                        <div class="ficha-col">
-                            <h4>Facturas Emitidas (AFIP)</h4>
-                            <div class="table-compact-wrapper">
-                                <table class="data-table compact" id="ficha-facturas-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Factura ID</th>
-                                            <th>Fecha</th>
-                                            <th>Monto</th>
-                                            <th>Tipo</th>
-                                            <th>Estado</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                            
+                            <!-- TARJETA DEL GRÁFICO DE CONCILIACIÓN Y RETRASO -->
+                            <div class="chart-card" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
+                                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 6px;">
+                                    📊 Histórico de Prestaciones y Cobertura de Pagos
+                                </h4>
+                                <div style="display: flex; gap: 25px; align-items: center; flex-wrap: wrap;">
+                                    <div style="flex: 2; min-width: 280px; height: 110px; position: relative;">
+                                        <canvas id="chart-cliente-cobertura"></canvas>
+                                    </div>
+                                    <div style="flex: 1.5; min-width: 250px; display: flex; flex-direction: column; gap: 8px;" id="chart-cliente-legend">
+                                        <!-- Leyenda dinámica por JS -->
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="ficha-col">
-                            <h4>Depósitos Recibidos (Banco)</h4>
-                            <div class="table-compact-wrapper">
-                                <table class="data-table compact" id="ficha-banco-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Detalle / Concepto</th>
-                                            <th>Monto</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                            
+                            <!-- COLUMNAS DETALLES COMPACTAS (3 columnas) -->
+                            <div class="ficha-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                                
+                                <!-- COLUMNA 1: PRESTACIONES -->
+                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
+                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Prestaciones (Vía 1)</h4>
+                                        <span id="col-prest-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-blue); font-family: monospace;">$0.00</span>
+                                    </div>
+                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
+                                        <table class="data-table compact" id="ficha-prestaciones-table" style="width: 100%;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Paciente</th>
+                                                    <th>Período</th>
+                                                    <th>Monto</th>
+                                                    <th>Estado</th>
+                                                    <th style="width: 20px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- COLUMNA 2: FACTURAS -->
+                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
+                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Facturas AFIP (Vía 2)</h4>
+                                        <span id="col-fact-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-blue); font-family: monospace;">$0.00</span>
+                                    </div>
+                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
+                                        <table class="data-table compact" id="ficha-facturas-table" style="width: 100%;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Factura ID</th>
+                                                    <th>Fecha</th>
+                                                    <th>Monto</th>
+                                                    <th>Estado</th>
+                                                    <th style="width: 20px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
+                                <!-- COLUMNA 3: BANCO -->
+                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
+                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Ingresos Banco (Vía 3)</h4>
+                                        <span id="col-banco-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-green); font-family: monospace;">$0.00</span>
+                                    </div>
+                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
+                                        <table class="data-table compact" id="ficha-banco-table" style="width: 100%;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Concepto</th>
+                                                    <th>Monto</th>
+                                                    <th style="width: 20px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                
                             </div>
                         </div>
                     </div>
@@ -413,6 +460,6 @@
     </div>
 
     <!-- Scripts de Lógica y UI -->
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=2.0"></script>
 </body>
 </html>
