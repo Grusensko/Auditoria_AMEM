@@ -686,16 +686,15 @@ button {
 }
 
 /* Comportamiento responsivo basado en el ancho del panel (Container Queries) */
-@container (max-width: 850px) {
+@container (max-width: 768px) {
     .master-detail-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: auto auto;
         overflow-y: auto;
     }
     
     .layout-master {
         height: auto;
-        max-height: 380px; /* límite para evitar que desborde el listado maestro en mobile */
     }
     
     .layout-detail {
