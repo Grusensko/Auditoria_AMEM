@@ -1780,24 +1780,23 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const item = document.createElement("div");
                     item.className = `listview-item ${borderCol}`;
+                    
+                    // Texto del tooltip sanitizado para JS inline
+                    const tooltipText = `<strong>Procedencia:</strong><br>📝 Archivo: ${p.archivo_origen || 'Desconocido'}<br>📍 Fila: ${p.nro_fila || '—'}`;
+                    
                     item.innerHTML = `
-                        <div class="listview-item-header">
-                            <span>${p.paciente}</span>
-                            <span class="status-chip ${chipCol}">${p.estado_conciliacion}</span>
+                        <div class="listview-item-main">
+                            <div class="listview-item-title">${p.paciente}</div>
+                            <div class="listview-item-amount color-blue">${formatCurrency(p.monto)}</div>
                         </div>
-                        <div class="listview-item-meta">
-                            <span>Período: ${formatPeriod(p.periodo)}</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="listview-item-amount color-blue font-mono">${formatCurrency(p.monto)}</span>
-                                <span class="relative">
-                                    <span class="audit-info-trigger">i</span>
-                                    <div class="audit-tooltip">
-                                        <strong>Procedencia:</strong><br>
-                                        📝 Archivo: ${p.archivo_origen || "Desconocido"}<br>
-                                        📍 Fila: ${p.nro_fila || "—"}
-                                    </div>
-                                </span>
+                        <div class="listview-item-details">
+                            <div class="listview-item-meta-group">
+                                <span class="listview-item-badge ${chipCol}">${p.estado_conciliacion}</span>
+                                <span class="listview-item-date">Período: ${formatPeriod(p.periodo)}</span>
                             </div>
+                            <span class="audit-info-trigger" 
+                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                  onmouseleave="hideTooltip()">i</span>
                         </div>
                     `;
                     listP.appendChild(item);
@@ -1816,24 +1815,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const item = document.createElement("div");
                     item.className = `listview-item ${borderCol}`;
+                    
+                    const tooltipText = `<strong>Procedencia:</strong><br>📄 Archivo: ${f.archivo_origen || 'Desconocido'}<br>📍 Fila: ${f.nro_fila || '—'}`;
+                    
                     item.innerHTML = `
-                        <div class="listview-item-header">
-                            <span class="font-mono text-xs">${f.comprobante_id}</span>
-                            <span class="status-chip ${isAct ? 'green' : 'red'}">${f.estado}</span>
+                        <div class="listview-item-main">
+                            <div class="listview-item-title font-mono text-xs">${f.comprobante_id}</div>
+                            <div class="listview-item-amount color-blue">${formatCurrency(f.monto_total)}</div>
                         </div>
-                        <div class="listview-item-meta">
-                            <span>Fecha: ${f.fecha_emision}</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="listview-item-amount color-blue font-mono">${formatCurrency(f.monto_total)}</span>
-                                <span class="relative">
-                                    <span class="audit-info-trigger">i</span>
-                                    <div class="audit-tooltip">
-                                        <strong>Procedencia:</strong><br>
-                                        📄 Archivo: ${f.archivo_origen || "Desconocido"}<br>
-                                        📍 Fila: ${f.nro_fila || "—"}
-                                    </div>
-                                </span>
+                        <div class="listview-item-details">
+                            <div class="listview-item-meta-group">
+                                <span class="listview-item-badge ${isAct ? 'green' : 'red'}">${f.estado}</span>
+                                <span class="listview-item-date">Fecha: ${f.fecha_emision}</span>
                             </div>
+                            <span class="audit-info-trigger" 
+                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                  onmouseleave="hideTooltip()">i</span>
                         </div>
                     `;
                     listF.appendChild(item);
@@ -1849,23 +1846,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 data.banco.forEach(b => {
                     const item = document.createElement("div");
                     item.className = `listview-item border-success`;
+                    
+                    const tooltipText = `<strong>Procedencia:</strong><br>🏦 Archivo: ${b.archivo_origen || 'Desconocido'}<br>📍 Fila: ${b.nro_fila || '—'}`;
+                    
                     item.innerHTML = `
-                        <div class="listview-item-header">
-                            <span class="text-xs text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</span>
+                        <div class="listview-item-main">
+                            <div class="listview-item-title text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</div>
+                            <div class="listview-item-amount color-success">${formatCurrency(b.credito)}</div>
                         </div>
-                        <div class="listview-item-meta">
-                            <span>Fecha: ${b.fecha}</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="listview-item-amount color-success font-mono">${formatCurrency(b.credito)}</span>
-                                <span class="relative">
-                                    <span class="audit-info-trigger">i</span>
-                                    <div class="audit-tooltip">
-                                        <strong>Procedencia:</strong><br>
-                                        🏦 Archivo: ${b.archivo_origen || "Desconocido"}<br>
-                                        📍 Fila: ${b.nro_fila || "—"}
-                                    </div>
-                                </span>
+                        <div class="listview-item-details">
+                            <div class="listview-item-meta-group">
+                                <span class="listview-item-date">Fecha: ${b.fecha}</span>
                             </div>
+                            <span class="audit-info-trigger" 
+                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                  onmouseleave="hideTooltip()">i</span>
                         </div>
                     `;
                     listB.appendChild(item);

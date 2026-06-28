@@ -397,6 +397,12 @@ button {
     display: flex;
     align-items: center;
     gap: 16px;
+    padding-left: 40px; /* Espacio para el botón hamburguesa fijo */
+    transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#app-screen.screen.active:not(.sidebar-collapsed) .header-left-group {
+    padding-left: 0px;
 }
 
 .header-right-group {
@@ -1405,14 +1411,16 @@ button {
    NAVEGACIÓN RESPONSIVE Y BOTÓN HAMBURGUESA ANIMADO
    ========================================================================== */
 .menu-toggle {
-    position: relative;
+    position: fixed;
+    top: 19px;
+    left: 20px;
     width: 32px;
     height: 32px;
     background: transparent;
     border: none;
     cursor: pointer;
     display: block; /* Siempre visible */
-    z-index: 1300;
+    z-index: 2000; /* Asegurar que quede por encima de todo */
 }
 
 .hamburger-line {
@@ -1750,7 +1758,7 @@ button {
     color: var(--color-green);
 }
 
-/* Comportamiento responsivo para las 3 tablas de conciliación de la ficha */
+/* Comportamiento responsivo para las 3 listviews de la ficha */
 @container detail-container (max-width: 800px) {
     .ficha-grid {
         grid-template-columns: 1fr; /* Apilar en una columna vertical */
@@ -1758,6 +1766,110 @@ button {
     }
     
     .ficha-col {
-        max-height: 320px; /* Altura máxima controlada para vista móvil/apilada */
+        max-height: 320px; /* Altura máxima controlada para vista apilada */
     }
 }
+
+/* --- CLASES DE LISTVIEW PREMIUM DE TARJETAS (BUEN GUSTO Y UX) --- */
+.listview-compact {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* ~8px */
+    padding: 0.25rem 0.25rem 0.25rem 0;
+}
+
+.listview-item {
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.listview-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05);
+}
+
+.listview-item-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.listview-item-title {
+    font-size: 0.8125rem; /* ~13px */
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.25;
+}
+
+.listview-item-amount {
+    font-size: 0.875rem; /* ~14px */
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    white-space: nowrap;
+}
+
+.listview-item-amount.color-blue {
+    color: var(--color-blue);
+}
+
+.listview-item-amount.color-success {
+    color: var(--color-green);
+}
+
+.listview-item-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.listview-item-meta-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.listview-item-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.625rem; /* ~10px */
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.listview-item-badge.blue { background-color: rgba(37, 99, 235, 0.1); color: var(--color-blue); }
+.listview-item-badge.green { background-color: rgba(5, 150, 105, 0.1); color: var(--color-green); }
+.listview-item-badge.orange { background-color: rgba(217, 119, 6, 0.1); color: var(--color-orange); }
+.listview-item-badge.red { background-color: rgba(220, 38, 38, 0.1); color: var(--color-red); }
+
+.listview-item-date {
+    font-size: 0.6875rem; /* ~11px */
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Espacio superior en sidebar para no tapar con el botón hamburguesa fijo */
+.sidebar {
+    padding-top: 70px;
+}
+
+/* Bordes laterales sutiles según el estado */
+.listview-item.border-success { border-left: 4px solid var(--color-green); }
+.listview-item.border-warning { border-left: 4px solid var(--color-orange); }
+.listview-item.border-danger { border-left: 4px solid var(--color-red); }
+.listview-item.border-info { border-left: 4px solid var(--color-blue); }
