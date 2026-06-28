@@ -107,6 +107,26 @@ def load_afip_ventas(ventas_txt_path: str, mes_auditoria: str) -> int:
             if fecha < "2025-10-01":
                 continue
                 
+            # Si la factura es de 2025, solo cargarla si coincide con una prestación activa (no cobrada en 2025)
+            if fecha < "2026-01-01":
+                fact_nro_clean = clean_factura_nro(nro_comp)
+                cursor.execute("""
+                    SELECT fecha_pago 
+                    FROM prestaciones 
+                    WHERE (factura_nro = ? OR factura_nro LIKE ?)
+                """, (fact_nro_clean, f"%-{fact_nro_clean}"))
+                prest_match = cursor.fetchall()
+                
+                should_load_factura = False
+                for p_row in prest_match:
+                    f_pago = p_row['fecha_pago']
+                    if not f_pago or f_pago >= "2026-01-01":
+                        should_load_factura = True
+                        break
+                
+                if not should_load_factura:
+                    continue
+                
             monto = float(monto_raw) / 100.0
             comprobante_id = f"{pto_venta}-{tipo_comp}-{nro_comp}"
             
@@ -261,6 +281,11 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
         elif pd.notna(fecha_pago_raw):
             fecha_pago = str(fecha_pago_raw).split(" ")[0]
             
+        # Ignorar prestaciones anteriores a 2026 que ya fueron cobradas antes de 2026
+        if fecha_prestacion and fecha_prestacion < "2026-01-01":
+            if fecha_pago and fecha_pago < "2026-01-01":
+                continue
+            
         forma_pago = str(row.get('FORMA DE PAGO')).strip() if 'FORMA DE PAGO' in df.columns and pd.notna(row.get('FORMA DE PAGO')) else ""
         paciente = str(row.get('PACIENTE')).strip() if 'PACIENTE' in df.columns and pd.notna(row.get('PACIENTE')) else ""
         
@@ -325,8 +350,8 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
             except ValueError:
                 fecha = str(fecha_raw)
                 
-        # Ignorar movimientos anteriores a Octubre 2025
-        if fecha < "2025-10-01":
+        # Ignorar movimientos bancarios anteriores a 2026 (según solicitud del usuario)
+        if fecha < "2026-01-01":
             continue
                 
         # Limpiar floats con representación nula rara

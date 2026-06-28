@@ -203,16 +203,16 @@
                             </div>
                             <span class="filter-header">Estados:</span>
                             <div class="filters-checkbox-grid">
-                                <label class="filter-checkbox-label" data-tooltip="🟢 Conciliado: Match completo de tres vías (Prestación + Factura + Banco)">
+                                <label class="filter-checkbox-label" onmouseenter="showTooltip(event, '🟢 Conciliado: Match completo de tres vías (Prestación + Factura + Banco)')" onmouseleave="hideTooltip()">
                                     <input type="checkbox" id="chk-master-conciliado"> 🟢 Concil.
                                 </label>
-                                <label class="filter-checkbox-label" data-tooltip="🔵 Pendiente de Factura: Prestación registrada sin factura de AFIP ni cobro">
+                                <label class="filter-checkbox-label" onmouseenter="showTooltip(event, '🔵 Pendiente de Factura: Prestación registrada sin factura de AFIP ni cobro')" onmouseleave="hideTooltip()">
                                     <input type="checkbox" id="chk-master-pendiente" checked> 🔵 Pend. Fact
                                 </label>
-                                <label class="filter-checkbox-label" data-tooltip="🟡 Pendiente de Cobro: Factura emitida sin cobro bancario identificado">
+                                <label class="filter-checkbox-label" onmouseenter="showTooltip(event, '🟡 Pendiente de Cobro: Factura emitida sin cobro bancario identificado')" onmouseleave="hideTooltip()">
                                     <input type="checkbox" id="chk-master-cobro" checked> 🟡 Pend. Cob
                                 </label>
-                                <label class="filter-checkbox-label" data-tooltip="🔴 Discrepancia: Diferencia de importes o inconsistencia de datos">
+                                <label class="filter-checkbox-label" onmouseenter="showTooltip(event, '🔴 Discrepancia: Diferencia de importes o inconsistencia de datos')" onmouseleave="hideTooltip()">
                                     <input type="checkbox" id="chk-master-discrepancia" checked> 🔴 Disc.
                                 </label>
                             </div>

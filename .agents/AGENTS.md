@@ -43,10 +43,11 @@ Este archivo define los comportamientos, reglas del negocio y pautas técnicas q
 3. **Pautas de CSS Moderno y Estilo:**
    * Para cualquier modificación, maquetación o creación de estilos, el agente **DEBE** apegarse estrictamente a las directrices de [CSS_STANDARDS.md](file:///d:/Repositories/AMEM/CSS_STANDARDS.md).
    * Se requiere el uso de **CSS Grid** para estructuras bidimensionales (como maestro-detalle y layout principal), **Container Queries (`@container`)** y `clamp()` para responsividad fluida sin breakpoints globales, **`subgrid`** para la alineación horizontal de tarjetas/KPIs y el espacio de color **OKLCH (`oklch()`)** para control perceptual de luminosidad y estados visuales coherentes.
-   * **Restricciones de Maquetación Obligatorias:**
-     * **No usar `<br />`:** Queda terminantemente prohibido utilizar etiquetas `<br />` para generar espaciados o posicionar elementos; usar en su lugar márgenes, paddings o propiedades `gap` en CSS.
-     * **Preferencia de CSS Grid sobre Flexbox:** Usar preferentemente Grid para estructurar layouts (tanto en 2D como en 1D). Se permite y recomienda usar Flexbox únicamente en alineaciones lineales simples, grupos de botones, o componentes inline pequeños.
-     * **Unidad de Medida Preferida (`rem`):** Se utilizará `rem` de forma preferente para tipografía, paddings, márgenes y dimensionamiento de componentes, reservando los píxeles (`px`) exclusivamente para grosores de borde de `1px` o sombras específicas.
+    * **Restricciones de Maquetación Obligatorias:**
+      * **No usar `<br />`:** Queda terminantemente prohibido utilizar etiquetas `<br />` para generar espaciados o posicionar elementos; usar en su lugar márgenes, paddings o propiedades `gap` en CSS.
+      * **Preferencia de CSS Grid sobre Flexbox:** Usar preferentemente Grid para estructurar layouts (tanto en 2D como en 1D). Se permite y recomienda usar Flexbox únicamente en alineaciones lineales simples, grupos de botones, o componentes inline pequeños.
+      * **Unidad de Medida Preferida (`rem`):** Se utilizará `rem` de forma preferente para tipografía, paddings, márgenes y dimensionamiento de componentes, reservando los píxeles (`px`) exclusivamente para grosores de borde de `1px` o sombras específicas.
+      * **Tooltips vía JS Obligatorios:** Queda prohibido el uso de tooltips basados únicamente en CSS (`::before`/`::after` o `attr(data-tooltip)`), ya que quedan ocultos o recortados en contenedores con `overflow: hidden` o `overflow: auto`. Se debe utilizar siempre la función JS global `showTooltip(event, text)` y `hideTooltip()` para instanciarlos fuera del flujo del contenedor.
 
 ---
 
