@@ -683,13 +683,21 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Prestaciones
-    cursor.execute("""
-        SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
-        FROM prestaciones
-        WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%'
-        ORDER BY fecha_factura ASC
-    """, (f"%{nombre[:5]}%", nombre))
+    # 1. Prestaciones (Evitar colisión difusa en nombres cortos como "G")
+    if len(nombre.strip()) <= 3:
+        cursor.execute("""
+            SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
+            FROM prestaciones
+            WHERE obra_social_nombre = ?
+            ORDER BY fecha_factura ASC
+        """, (nombre.strip(),))
+    else:
+        cursor.execute("""
+            SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
+            FROM prestaciones
+            WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%'
+            ORDER BY fecha_factura ASC
+        """, (f"%{nombre.strip()[:5]}%", nombre.strip()))
     prest_asoc = [dict(row) for row in cursor.fetchall()]
     
     # 2. Facturas AFIP
@@ -717,6 +725,59 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
         "facturas": fact_asoc,
         "banco": banco_asoc
     }
+
+
+class CatalogarRequest(BaseModel):
+    id_movimiento: int
+    categoria: str
+    comentario: Optional[str] = ""
+
+@app.get("/api/alertas")
+def get_alertas():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Buscaremos transacciones sospechosas:
+    # 1. Concepto contiene 'Reverso' (rebotes de transferencia)
+    # 2. CUIT asociado es el de Veronica Priori (27174412702) que es empleada
+    # 3. Transacciones de débito > 100.000 con detalle genérico o 'Referencia: |'
+    # 4. Cualquier movimiento que ya esté catalogado
+    cursor.execute("""
+        SELECT id, fecha, hora, concepto, detalle, debito, credito, saldo, 
+               cuit_txt_asociado, mes_auditoria, archivo_origen, nro_fila,
+               categoria_auditoria, comentario_auditoria
+        FROM movimientos_banco
+        WHERE concepto LIKE '%Reverso%'
+           OR cuit_txt_asociado = '27174412702'
+           OR (debito > 100000.0 AND (detalle = '' OR detalle IS NULL OR detalle LIKE '%Referencia:%'))
+           OR (categoria_auditoria IS NOT NULL AND categoria_auditoria != '')
+        ORDER BY fecha DESC, hora DESC, id DESC
+    """)
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+@app.post("/api/movimiento/catalogar")
+def catalogar_movimiento(req: CatalogarRequest):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id FROM movimientos_banco WHERE id = ?", (req.id_movimiento,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+        
+    cursor.execute("""
+        UPDATE movimientos_banco
+        SET categoria_auditoria = ?, comentario_auditoria = ?
+        WHERE id = ?
+    """, (req.categoria, req.comentario, req.id_movimiento))
+    
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Movimiento catalogado correctamente"}
 
 
 # Serve index.html SPA

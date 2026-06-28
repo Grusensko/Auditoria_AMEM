@@ -159,6 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     loadConciliacionData();
                 } else if (target === "view-clientes") {
                     loadClientes();
+                } else if (target === "view-alertas") {
+                    loadAlertasData();
                 } else if (target === "view-reportes") {
                     const reportElem = document.getElementById("report-period-confirm");
                     if (reportElem) {
@@ -1529,6 +1531,180 @@ document.addEventListener("DOMContentLoaded", () => {
             return 0;
         }
     }
+
+    async function loadAlertasData() {
+        const loading = document.getElementById("alertas-loading");
+        const emptyState = document.getElementById("alertas-empty-state");
+        const list = document.getElementById("alertas-list");
+        
+        if (loading) loading.style.display = "block";
+        if (emptyState) emptyState.style.display = "none";
+        if (list) list.innerHTML = "";
+        
+        try {
+            const res = await fetch("/api/alertas");
+            const data = await res.json();
+            
+            if (loading) loading.style.display = "none";
+            
+            if (!data || data.length === 0) {
+                if (emptyState) emptyState.style.display = "block";
+                return;
+            }
+            
+            data.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "alerta-card";
+                
+                // Determinar el borde y la categoría de la alerta según los datos
+                let borderClass = "border-ajuste";
+                let badgeClass = "badge-ajuste";
+                let badgeText = "Ajuste";
+                
+                if (item.categoria_auditoria) {
+                    const cat = item.categoria_auditoria.toLowerCase();
+                    if (cat.includes("sospechos") || cat.includes("investig")) {
+                        borderClass = "border-sospechosa";
+                        badgeClass = "badge-sospechosa";
+                        badgeText = "Bajo Investigación";
+                    } else if (cat.includes("emplead")) {
+                        borderClass = "border-empleado";
+                        badgeClass = "badge-empleado";
+                        badgeText = "Empleado";
+                    } else if (cat.includes("error")) {
+                        borderClass = "border-error";
+                        badgeClass = "badge-error";
+                        badgeText = "Error de Carga";
+                    } else if (cat.includes("aprob") || cat.includes("sin alerta")) {
+                        borderClass = "border-aprobado";
+                        badgeClass = "badge-aprobado";
+                        badgeText = "Aprobado";
+                    }
+                } else {
+                    // Auto-categorización inicial sugerida en base a las reglas
+                    if (item.concepto.toLowerCase().includes("reverso")) {
+                        borderClass = "border-error";
+                        badgeClass = "badge-error";
+                        badgeText = "Reverso (Sugerido)";
+                    } else if (item.cuit_txt_asociado === "27174412702") {
+                        borderClass = "border-empleado";
+                        badgeClass = "badge-empleado";
+                        badgeText = "Empleado (Sugerido)";
+                    } else {
+                        borderClass = "border-sospechosa";
+                        badgeClass = "badge-sospechosa";
+                        badgeText = "Sospechosa (Sugerido)";
+                    }
+                }
+                
+                card.classList.add(borderClass);
+                
+                // Formatear montos
+                const debitoStr = item.debito > 0 ? formatCurrency(item.debito) : "";
+                const creditoStr = item.credito > 0 ? formatCurrency(item.credito) : "";
+                
+                const selectValue = item.categoria_auditoria || "";
+                const comentarioValue = item.comentario_auditoria || "";
+                
+                card.innerHTML = `
+                    <div class="alerta-info">
+                        <div class="alerta-header">
+                            <span class="alerta-concept">${item.concepto}</span>
+                            <span class="alerta-badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <div class="alerta-detail">${item.detalle || "(Sin detalles)"}</div>
+                        <div class="alerta-meta">
+                            <span>📅 ${item.fecha} ${item.hora || ""}</span>
+                            <span>📁 Fila ${item.nro_fila} (${item.archivo_origen})</span>
+                        </div>
+                    </div>
+                    <div class="alerta-monto-pane">
+                        <span class="alerta-monto-label">${item.debito > 0 ? 'Egreso (Débito)' : 'Ingreso (Crédito)'}</span>
+                        <span class="alerta-monto ${item.debito > 0 ? 'debito' : 'credito'}">
+                            ${item.debito > 0 ? '-' : '+'}&nbsp;${item.debito > 0 ? debitoStr : creditoStr}
+                        </span>
+                    </div>
+                    <div class="alerta-acciones">
+                        <div class="alerta-inputs">
+                            <select class="alerta-select" id="select-alerta-${item.id}">
+                                <option value="" ${selectValue === "" ? "selected" : ""}>-- Seleccionar Estado --</option>
+                                <option value="Bajo Investigación" ${selectValue === "Bajo Investigación" ? "selected" : ""}>🔍 Bajo Investigación</option>
+                                <option value="Transferencia a Empleado" ${selectValue === "Transferencia a Empleado" ? "selected" : ""}>👤 Transferencia a Empleado</option>
+                                <option value="Error de Carga" ${selectValue === "Error de Carga" ? "selected" : ""}>⚠️ Error de Carga / Rebotado</option>
+                                <option value="Ajuste Contable" ${selectValue === "Ajuste Contable" ? "selected" : ""}>📝 Ajuste Contable</option>
+                                <option value="Sin Alerta / Aprobado" ${selectValue === "Sin Alerta / Aprobado" ? "selected" : ""}>✅ Sin Alerta / Aprobado</option>
+                            </select>
+                            <input type="text" class="alerta-comentario" id="comentario-alerta-${item.id}" 
+                                   placeholder="Añadir nota explicativa..." value="${comentarioValue}">
+                        </div>
+                        <button class="btn-guardar-alerta disabled" id="btn-save-alerta-${item.id}" onclick="saveAlertaCatalogar(${item.id})">
+                            Guardar
+                        </button>
+                    </div>
+                `;
+                
+                list.appendChild(card);
+                
+                // Configurar lógica reactiva para activar el botón guardar al detectar cambios
+                const sel = card.querySelector(`#select-alerta-${item.id}`);
+                const inp = card.querySelector(`#comentario-alerta-${item.id}`);
+                const btn = card.querySelector(`#btn-save-alerta-${item.id}`);
+                
+                const checkChanges = () => {
+                    const currentSel = sel.value;
+                    const currentInp = inp.value.trim();
+                    if (currentSel !== selectValue || currentInp !== comentarioValue) {
+                        btn.classList.remove("disabled");
+                    } else {
+                        btn.classList.add("disabled");
+                    }
+                };
+                
+                sel.addEventListener("change", checkChanges);
+                inp.addEventListener("input", checkChanges);
+            });
+            
+        } catch (error) {
+            console.error("Error al cargar las alertas contables", error);
+            if (loading) loading.style.display = "none";
+        }
+    }
+
+    // Exponer saveAlertaCatalogar globalmente para que funcione con el onclick inline
+    window.saveAlertaCatalogar = async function(id) {
+        const sel = document.getElementById(`select-alerta-${id}`);
+        const inp = document.getElementById(`comentario-alerta-${id}`);
+        const btn = document.getElementById(`btn-save-alerta-${id}`);
+        
+        if (!sel) return;
+        
+        const categoria = sel.value;
+        const comentario = inp ? inp.value.trim() : "";
+        
+        try {
+            const res = await fetch("/api/movimiento/catalogar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_movimiento: id,
+                    categoria: categoria,
+                    comentario: comentario
+                })
+            });
+            
+            const result = await res.json();
+            if (result.status === "success") {
+                showToast("Cambios guardados con éxito.");
+                // Recargar las alertas para refrescar los bordes y estados sugeridos
+                loadAlertasData();
+            } else {
+                showToast("Error al guardar cambios.");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error en la conexión al catalogar.");
+        }
+    };
 
     async function loadClientes(query = "") {
         try {

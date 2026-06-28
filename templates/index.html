@@ -11,7 +11,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Estilos CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=2.4">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
 </head>
 <body>
 
@@ -58,6 +58,10 @@
                 <button id="nav-importar" class="menu-item" data-target="view-importar">
                     <span class="menu-icon">📂</span>
                     <span class="menu-text">Cargar Datos</span>
+                </button>
+                <button class="menu-item" data-target="view-alertas">
+                    <span class="menu-icon">🛡️</span>
+                    <span class="menu-text">Alertas y Control</span>
                 </button>
                 <button class="menu-item" data-target="view-reportes">
                     <span class="menu-icon">📥</span>
@@ -199,16 +203,16 @@
                             </div>
                             <span class="filter-header">Estados:</span>
                             <div class="filters-checkbox-grid">
-                                <label class="filter-checkbox-label">
+                                <label class="filter-checkbox-label" data-tooltip="🟢 Conciliado: Match completo de tres vías (Prestación + Factura + Banco)">
                                     <input type="checkbox" id="chk-master-conciliado"> 🟢 Concil.
                                 </label>
-                                <label class="filter-checkbox-label">
+                                <label class="filter-checkbox-label" data-tooltip="🔵 Pendiente de Factura: Prestación registrada sin factura de AFIP ni cobro">
                                     <input type="checkbox" id="chk-master-pendiente" checked> 🔵 Pend. Fact
                                 </label>
-                                <label class="filter-checkbox-label">
+                                <label class="filter-checkbox-label" data-tooltip="🟡 Pendiente de Cobro: Factura emitida sin cobro bancario identificado">
                                     <input type="checkbox" id="chk-master-cobro" checked> 🟡 Pend. Cob
                                 </label>
-                                <label class="filter-checkbox-label">
+                                <label class="filter-checkbox-label" data-tooltip="🔴 Discrepancia: Diferencia de importes o inconsistencia de datos">
                                     <input type="checkbox" id="chk-master-discrepancia" checked> 🔴 Disc.
                                 </label>
                             </div>
@@ -335,6 +339,30 @@
                 </div>
             </section>
 
+            <!-- SECCIÓN NUEVA: ALERTAS Y CONTROL INTERNO -->
+            <section id="view-alertas" class="view-pane">
+                <div class="view-card">
+                    <h3>Alertas y Control Interno (Auditoría Forense)</h3>
+                    <p style="opacity: 0.7; margin-bottom: 25px;">
+                        El sistema analiza e identifica de forma automatizada transacciones atípicas (reversos, egresos a empleados, desvíos sin descripción) para su catalogación y justificación contable.
+                    </p>
+                    
+                    <div id="alertas-loading" class="loading-spinner" style="display: none;">
+                        Cargando alertas de control interno...
+                    </div>
+                    
+                    <div id="alertas-empty-state" class="empty-state" style="display: none;">
+                        <span style="font-size: 3rem;">🛡️</span>
+                        <h4>Sin alertas detectadas</h4>
+                        <p>No se encontraron movimientos bancarios inusuales que cumplan los criterios de riesgo.</p>
+                    </div>
+
+                    <div id="alertas-list" class="alertas-grid">
+                        <!-- Las tarjetas de alerta se inyectarán dinámicamente aquí -->
+                    </div>
+                </div>
+            </section>
+
             <!-- SECCIÓN 4: CARGAR DATOS -->
             <section id="view-importar" class="view-pane">
                 <div class="view-card">
@@ -444,6 +472,6 @@
     </div>
 
     <!-- Scripts de Lógica y UI -->
-    <script src="/static/js/app.js?v=2.4"></script>
+    <script src="/static/js/app.js?v=2.5"></script>
 </body>
 </html>

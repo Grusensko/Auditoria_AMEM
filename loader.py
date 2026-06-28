@@ -103,6 +103,10 @@ def load_afip_ventas(ventas_txt_path: str, mes_auditoria: str) -> int:
             except ValueError:
                 fecha = fecha_raw
                 
+            # Ignorar facturas anteriores a Octubre 2025
+            if fecha < "2025-10-01":
+                continue
+                
             monto = float(monto_raw) / 100.0
             comprobante_id = f"{pto_venta}-{tipo_comp}-{nro_comp}"
             
@@ -282,8 +286,17 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
         
     df = pd.read_excel(excel_path)
     
-    # Normalizar columnas
-    df.columns = [str(c).strip().title() for c in df.columns]
+    # Normalizar columnas de forma tolerante a codificaciones y tipografía (ej: Díbito, Crdito)
+    def sanitize_col_name(c):
+        val = str(c).strip().lower()
+        val = val.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+        if 'deb' in val:
+            return 'debito'
+        if 'cred' in val:
+            return 'credito'
+        return val
+        
+    df.columns = [sanitize_col_name(c) for c in df.columns]
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -291,13 +304,13 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
     file_name = os.path.basename(excel_path)
     count = 0
     for idx, row in df.iterrows():
-        fecha_raw = row.get('Fecha')
-        concepto = str(row.get('Concepto')).strip() if pd.notna(row.get('Concepto')) else ""
-        detalle = str(row.get('Detalle')).strip() if pd.notna(row.get('Detalle')) else ""
-        debito = float(row.get('Díbito')) if pd.notna(row.get('Díbito')) else 0.0
-        credito = float(row.get('Crédito')) if pd.notna(row.get('Crédito')) else 0.0
-        saldo = float(row.get('Saldo')) if pd.notna(row.get('Saldo')) else 0.0
-        hora = str(row.get('Hora')).strip() if pd.notna(row.get('Hora')) else ""
+        fecha_raw = row.get('fecha')
+        concepto = str(row.get('concepto')).strip() if pd.notna(row.get('concepto')) else ""
+        detalle = str(row.get('detalle')).strip() if pd.notna(row.get('detalle')) else ""
+        debito = float(row.get('debito')) if pd.notna(row.get('debito')) else 0.0
+        credito = float(row.get('credito')) if pd.notna(row.get('credito')) else 0.0
+        saldo = float(row.get('saldo')) if pd.notna(row.get('saldo')) else 0.0
+        hora = str(row.get('hora')).strip() if pd.notna(row.get('hora')) else ""
         
         if pd.isna(fecha_raw) or not concepto:
             continue
@@ -312,6 +325,10 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
             except ValueError:
                 fecha = str(fecha_raw)
                 
+        # Ignorar movimientos anteriores a Octubre 2025
+        if fecha < "2025-10-01":
+            continue
+                
         # Limpiar floats con representación nula rara
         if debito < 1e-10: debito = 0.0
         if credito < 1e-10: credito = 0.0
@@ -320,8 +337,8 @@ def load_excel_banco(excel_path: str, mes_auditoria: str) -> int:
         cuit_asociado, nombre_asociado = extract_cuit_and_name_from_bank_detail(detalle)
         c_hash = hash_cuit(cuit_asociado) if cuit_asociado else None
         
-        # Si detectamos un nuevo cliente en el banco, guardarlo
-        if cuit_asociado and c_hash:
+        # Si detectamos un nuevo cliente en el banco (solo para transacciones de ingreso / credito > 0), guardarlo
+        if cuit_asociado and c_hash and credito > 0.0:
             cursor.execute("SELECT cuit_hash FROM clientes WHERE cuit_hash = ?", (c_hash,))
             if not cursor.fetchone():
                 cuit_enc = encrypt_data(cuit_asociado)
@@ -357,10 +374,11 @@ if __name__ == "__main__":
     # Test de carga con la información de Mayo 2026
     print("Iniciando carga de prueba de Mayo 2026...")
     
-    afip_file = r"d:\OneDrive\Development\AMEM\_data\2026-05\RESULTADOS_BUSQUEDA\VENTAS.txt"
-    banco_file = glob.glob(r"d:\OneDrive\Development\AMEM\_data\Información Bancaria\Movimientos_Supervielle_*.xlsx")[0]
+    afip_file = r"d:\OneDrive\Development\AMEM\_data\Facturas\2026-05\VENTAS.txt"
+    banco_files = glob.glob(r"d:\OneDrive\Development\AMEM\_data\*Bancaria\*Movimientos_Supervielle_*.xlsx")
     prestaciones_file = r"d:\OneDrive\Development\AMEM\_data\fwdinformesgestion\INFORME ABRIL 2026.xlsx" # Usaremos Abril como prueba
     
     load_afip_ventas(afip_file, "2026-05")
-    load_excel_banco(banco_file, "2026-05")
+    for bf in banco_files:
+        load_excel_banco(bf, "2026-05")
     load_excel_prestaciones(prestaciones_file, "2026-05")

@@ -700,6 +700,54 @@ button {
     cursor: pointer;
 }
 
+/* Tooltip custom para los checkboxes de estados */
+.filter-checkbox-label {
+    position: relative;
+}
+
+.filter-checkbox-label[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 140%;
+    left: 0;
+    background-color: var(--text-primary);
+    color: var(--bg-secondary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.3;
+    width: 220px;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.filter-checkbox-label[data-tooltip]::before {
+    content: "";
+    position: absolute;
+    bottom: 120%;
+    left: 15px;
+    border-width: 6px 6px 0 6px;
+    border-style: solid;
+    border-color: var(--text-primary) transparent transparent transparent;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.filter-checkbox-label[data-tooltip]:hover::after,
+.filter-checkbox-label[data-tooltip]:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
 .master-list-wrapper {
     flex-grow: 1;
     overflow-y: auto;
@@ -1711,6 +1759,20 @@ button {
     visibility: visible;
 }
 
+/* Posicionamiento del icono de información (i) y su tooltip en tarjetas de detalle */
+.detail-card .audit-info-trigger {
+    position: absolute !important;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+}
+
+.detail-card .audit-tooltip {
+    position: absolute !important;
+    top: 2.5rem;
+    right: 1rem;
+}
+
 /* --- CLASES DE FICHA DETALLE Y TABLAS (100% CSS) --- */
 .ficha-grid {
     display: grid;
@@ -1726,8 +1788,8 @@ button {
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    max-height: 480px;
-    overflow: hidden;
+    height: calc(100vh - 340px);
+    min-height: 380px;
     position: relative;
     box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
@@ -1882,3 +1944,178 @@ button {
 .listview-item.border-warning { border-left: 4px solid var(--color-orange); }
 .listview-item.border-danger { border-left: 4px solid var(--color-red); }
 .listview-item.border-info { border-left: 4px solid var(--color-blue); }
+
+/* ==========================================
+   SECCIÓN ALERTAS Y CONTROL INTERNO
+   ========================================== */
+.alertas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+    margin-top: 15px;
+    height: calc(100vh - 280px);
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.alerta-card {
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.5fr;
+    align-items: center;
+    gap: 1.5rem;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.alerta-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-color: rgba(15, 23, 42, 0.15);
+}
+
+.alerta-card.border-sospechosa { border-left: 6px solid var(--color-red); }
+.alerta-card.border-empleado { border-left: 6px solid var(--color-blue); }
+.alerta-card.border-error { border-left: 6px solid var(--color-orange); }
+.alerta-card.border-ajuste { border-left: 6px solid var(--text-muted); }
+.alerta-card.border-aprobado { border-left: 6px solid var(--color-green); }
+
+.alerta-info {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.alerta-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alerta-concept {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.alerta-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.alerta-badge.badge-sospechosa { background-color: #fee2e2; color: #991b1b; }
+.alerta-badge.badge-empleado { background-color: #dbeafe; color: #1e40af; }
+.alerta-badge.badge-error { background-color: #ffedd5; color: #9a3412; }
+.alerta-badge.badge-ajuste { background-color: #f1f5f9; color: #475569; }
+.alerta-badge.badge-aprobado { background-color: #dcfce7; color: #166534; }
+
+.alerta-detail {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.alerta-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.alerta-monto-pane {
+    text-align: right;
+    display: grid;
+    gap: 0.2rem;
+}
+
+.alerta-monto-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.alerta-monto {
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+}
+
+.alerta-monto.debito { color: var(--color-red); }
+.alerta-monto.credito { color: var(--color-green); }
+
+.alerta-acciones {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
+    background-color: rgba(248, 250, 252, 0.6);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+.alerta-inputs {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.alerta-select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.alerta-select:focus {
+    border-color: var(--color-blue);
+}
+
+.alerta-comentario {
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.alerta-comentario:focus {
+    border-color: var(--color-blue);
+}
+
+.btn-guardar-alerta {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    background-color: var(--color-blue);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, background-color 0.2s;
+    height: 100%;
+}
+
+.btn-guardar-alerta:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-guardar-alerta.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+

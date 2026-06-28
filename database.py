@@ -137,6 +137,8 @@ def init_db():
         cuit_hash_asociado TEXT, -- Relación detectada con un cliente
         cuit_txt_asociado TEXT,
         mes_auditoria TEXT NOT NULL,
+        categoria_auditoria TEXT,
+        comentario_auditoria TEXT,
         FOREIGN KEY (cuit_hash_asociado) REFERENCES clientes(cuit_hash)
     )
     """)
@@ -169,7 +171,9 @@ def init_db():
         ("facturas", "archivo_origen", "TEXT"),
         ("facturas", "nro_fila", "INTEGER"),
         ("movimientos_banco", "archivo_origen", "TEXT"),
-        ("movimientos_banco", "nro_fila", "INTEGER")
+        ("movimientos_banco", "nro_fila", "INTEGER"),
+        ("movimientos_banco", "categoria_auditoria", "TEXT"),
+        ("movimientos_banco", "comentario_auditoria", "TEXT")
     ]:
         try:
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")

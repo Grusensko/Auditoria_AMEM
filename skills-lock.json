@@ -13,6 +13,18 @@
       "skillPath": "crates/openfang-skills/bundled/css-expert/SKILL.md",
       "computedHash": "36b6d2641998855df9cc4cdc9c19e83481db716b74a6d246ae3f50dcd216f123"
     },
+    "data-engineer": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/data-engineer/SKILL.md",
+      "computedHash": "6de2de0bf8f6952fbb4136896c0856dbaabded85c32e288ce5d30a3b2fe157a7"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "781bd6d3f9b19f8c9af6b53d8d0e4876d0183841b565db34ca7092ffa412d111"
+    },
     "interface-details": {
       "source": "detaildotdesign/skill",
       "sourceType": "github",
