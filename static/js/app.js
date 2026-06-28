@@ -1496,6 +1496,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- BUSCADOR Y FILTROS DE CLIENTES ---
+    const clientSearchInp = document.getElementById("clientes-search-input");
     const clientStatusFilter = document.getElementById("clientes-status-filter");
     
     if (clientSearchInp) {
