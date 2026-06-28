@@ -533,7 +533,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     else if (p.estado === "DISCREPANCIA") statusEmoji = "🔴";
                     
                     const btn = document.createElement("button");
-                    btn.innerHTML = `<strong>${statusEmoji} ${p.os}</strong> — ${formatCurrency(p.monto)}<br><span style="opacity:0.8;font-size:11px;">👤 Paciente: ${p.paciente}</span>`;
+                    btn.innerHTML = `<strong>${statusEmoji} ${p.os}</strong> — ${formatCurrency(p.monto)}<br><span class="search-item-meta">👤 Paciente: ${p.paciente}</span>`;
                     
                     btn.addEventListener("click", () => {
                         selectPrestacion(p.prest_id);
@@ -546,7 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Cargar detalles en panel derecho
                 renderDetailPane();
             } else {
-                container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">Sin resultados</div>`;
+                container.innerHTML = `<div class="list-empty-state">Sin resultados</div>`;
                 showDetailPlaceholder("No hay facturas o prestaciones que coincidan con la búsqueda.");
             }
         } else {
@@ -588,7 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const btn = document.createElement("button");
                     const concStr = b.concepto || "";
                     const cuitStr = b.cuit_txt ? ` | CUIT: ${b.cuit_txt}` : "";
-                    btn.innerHTML = `<strong>${statusEmoji} ${b.fecha}</strong> — ${formatCurrency(b.credito)}<br><span style="opacity:0.8;font-size:11px;">🏦 ${concStr}${cuitStr}</span>`;
+                    btn.innerHTML = `<strong>${statusEmoji} ${b.fecha}</strong> — ${formatCurrency(b.credito)}<br><span class="search-item-meta">🏦 ${concStr}${cuitStr}</span>`;
                     
                     btn.addEventListener("click", () => {
                         selectBanco(b.banco_id);
@@ -600,7 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 renderDetailPane();
             } else {
-                container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">Sin resultados</div>`;
+                container.innerHTML = `<div class="list-empty-state">Sin resultados</div>`;
                 showDetailPlaceholder("No hay depósitos bancarios que coincidan con la búsqueda.");
             }
         }
@@ -879,7 +879,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <div>
                             <div class="info-label">Monto de la Prestación</div>
-                            <div class="info-value" style="font-size: 16px; color: var(--color-green); font-weight: 700;">${formatCurrency(prest.monto)}</div>
+                            <div class="info-value text-success font-semibold">${formatCurrency(prest.monto)}</div>
                             <div class="info-label">Período de Prestación</div>
                             <div class="info-value">${formatPeriod(prest.periodo)}</div>
                         </div>
@@ -958,7 +958,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (prest.banco_id) {
                 html += `
-                    <div class="info-banner" style="padding: 10px; font-size:12px; margin-bottom:15px;" id="banco-vinculo-info-a">
+                     <div class="info-banner" id="banco-vinculo-info-a">
                         Cargando depósito vinculado actual...
                     </div>
                 `;
@@ -1241,7 +1241,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="info-label">Fecha de Depósito</div>
                             <div class="info-value">${banco.fecha}</div>
                             <div class="info-label">Monto Acreditado</div>
-                            <div class="info-value" style="font-size: 16px; color: var(--color-green); font-weight: 700;">${formatCurrency(banco.credito)}</div>
+                            <div class="info-value text-success font-semibold">${formatCurrency(banco.credito)}</div>
                         </div>
                         <div>
                             <div class="info-label">Concepto Bancario</div>
@@ -1570,7 +1570,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         : "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
 
                     const btn = document.createElement("button");
-                    btn.innerHTML = `<div style="display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; width: 100%; margin: 0; padding: 0;"><div style="grid-column: 1 / -1; font-weight: 700; font-size: 13.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">👤 ${c.nombre}</div><div style="grid-column: 1; font-size: 11.5px; opacity: 0.85; text-align: left;">CUIT: ${c.cuit}</div><span class="status-chip ${tagClass}" style="grid-column: 2; font-size: 10px;" onmouseenter="showTooltip(event, '${tooltipText}')" onmouseleave="hideTooltip()">${tagLabel}</span></div>`;
+                    btn.innerHTML = `
+                        <div class="client-card-layout">
+                            <div class="client-card-title">👤 ${c.nombre}</div>
+                            <div class="client-card-cuit">CUIT: ${c.cuit}</div>
+                            <span class="status-chip ${tagClass} client-card-status" onmouseenter="showTooltip(event, '${tooltipText}')" onmouseleave="hideTooltip()">${tagLabel}</span>
+                        </div>
+                    `;
                     
                     btn.addEventListener("click", () => {
                         selectedClienteHash = c.cuit_hash;
@@ -1582,7 +1588,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     container.appendChild(card);
                 });
             } else {
-                container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;">No se encontraron clientes</div>`;
+                container.innerHTML = `<div class="list-empty-state">No se encontraron clientes</div>`;
             }
         } catch (e) { console.error(e); }
     }
@@ -1652,30 +1658,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const legendContainer = document.getElementById("chart-cliente-legend");
             legendContainer.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
-                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
-                        <span style="width:10px; height:10px; border-radius:50%; background-color:#047857; display:inline-block;"></span>
+                <div class="legend-row">
+                    <span class="legend-label">
+                        <span class="legend-color-dot" style="background-color:#047857;"></span>
                         Conciliado (Match 3 Vías)
                     </span>
-                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoConciliado)} (${pctConciliado}%)</span>
+                    <span class="legend-value">${formatCurrency(montoConciliado)} (${pctConciliado}%)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
-                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
-                        <span style="width:10px; height:10px; border-radius:50%; background-color:#1D4ED8; display:inline-block;"></span>
+                <div class="legend-row">
+                    <span class="legend-label">
+                        <span class="legend-color-dot" style="background-color:#1D4ED8;"></span>
                         Faltante en Delay Normal (&le; 90d)
                     </span>
-                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoDelayNormal)} (${pctDelayNormal}%)</span>
+                    <span class="legend-value">${formatCurrency(montoDelayNormal)} (${pctDelayNormal}%)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 4px 0;">
-                    <span style="display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text-primary);">
-                        <span style="width:10px; height:10px; border-radius:50%; background-color:#B91C1C; display:inline-block;"></span>
+                <div class="legend-row">
+                    <span class="legend-label">
+                        <span class="legend-color-dot" style="background-color:#B91C1C;"></span>
                         Faltante Fuera de Delay (&gt; 90d)
                     </span>
-                    <span style="font-weight:700; color:var(--text-primary); font-family:monospace;">${formatCurrency(montoDelayExcedido)} (${pctDelayExcedido}%)</span>
+                    <span class="legend-value">${formatCurrency(montoDelayExcedido)} (${pctDelayExcedido}%)</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; padding: 6px 0; border-top:1px solid rgba(128,128,128,0.2); margin-top:5px;">
-                    <span style="font-weight:700; color:var(--text-secondary);">Total Prestaciones</span>
-                    <span style="font-weight:800; color:var(--text-primary); font-family:monospace;">${formatCurrency(totalPrestaciones)} (100.0%)</span>
+                <div class="legend-row legend-total">
+                    <span class="legend-label">Total Prestaciones</span>
+                    <span class="legend-value">${formatCurrency(totalPrestaciones)} (100.0%)</span>
                 </div>
             `;
 
@@ -1763,9 +1769,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${formatPeriod(p.periodo)}</td>
                         <td>${formatCurrency(p.monto)}</td>
                         <td><span class="status-chip ${chipCol}">${p.estado_conciliacion}</span></td>
-                        <td style="position: relative; text-align: center;">
-                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
-                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                        <td class="relative text-center">
+                            <span class="audit-info-trigger">i</span>
+                            <div class="audit-tooltip">
                                 <strong>Procedencia:</strong><br>
                                 📝 Archivo: ${p.archivo_origen || "Desconocido"}<br>
                                 📍 Fila: ${p.nro_fila || "—"}
@@ -1775,7 +1781,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     tbodyP.appendChild(tr);
                 });
             } else {
-                tbodyP.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:15px;">Sin prestaciones registradas</td></tr>`;
+                tbodyP.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-3">Sin prestaciones registradas</td></tr>`;
             }
             
             // 2. Renderizar Facturas (Vía 2)
@@ -1786,13 +1792,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const isAct = f.estado.toUpperCase() === "ACTIVO";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td style="font-family: monospace; font-size: 11px;">${f.comprobante_id}</td>
+                        <td class="font-mono text-xs">${f.comprobante_id}</td>
                         <td>${f.fecha_emision}</td>
                         <td>${formatCurrency(f.monto_total)}</td>
                         <td><span class="status-chip ${isAct ? 'green' : 'red'}">${f.estado}</span></td>
-                        <td style="position: relative; text-align: center;">
-                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
-                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                        <td class="relative text-center">
+                            <span class="audit-info-trigger">i</span>
+                            <div class="audit-tooltip">
                                 <strong>Procedencia:</strong><br>
                                 📄 Archivo: ${f.archivo_origen || "Desconocido"}<br>
                                 📍 Fila: ${f.nro_fila || "—"}
@@ -1802,7 +1808,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     tbodyF.appendChild(tr);
                 });
             } else {
-                tbodyF.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:15px;">Sin facturas registradas</td></tr>`;
+                tbodyF.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-3">Sin facturas registradas</td></tr>`;
             }
             
             // 3. Renderizar Banco (Vía 3)
@@ -1813,11 +1819,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${b.fecha}</td>
-                        <td style="font-size: 11px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</td>
-                        <td><strong style="color:var(--color-green);">${formatCurrency(b.credito)}</strong></td>
-                        <td style="position: relative; text-align: center;">
-                            <span class="audit-info-trigger" style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 10px; border-radius: 50%; background-color: rgba(128,128,128,0.15); color: var(--text-secondary); cursor: pointer;">i</span>
-                            <div class="audit-tooltip" style="position: absolute; top: 25px; right: 0; background-color: var(--text-primary); color: var(--bg-secondary); padding: 8px 12px; border-radius: 6px; font-size: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 100; min-width: 180px; text-align: left;">
+                        <td class="text-xs text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</td>
+                        <td><strong class="color-success">${formatCurrency(b.credito)}</strong></td>
+                        <td class="relative text-center">
+                            <span class="audit-info-trigger">i</span>
+                            <div class="audit-tooltip">
                                 <strong>Procedencia:</strong><br>
                                 🏦 Archivo: ${b.archivo_origen || "Desconocido"}<br>
                                 📍 Fila: ${b.nro_fila || "—"}

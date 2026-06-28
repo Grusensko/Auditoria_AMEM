@@ -72,6 +72,22 @@ h1, h2, h3, h4, .header-title {
     font-weight: 700;
 }
 
+h1 {
+    font-size: clamp(1.6rem, 3vw + 1rem, 2.5rem);
+}
+
+h2, .header-title {
+    font-size: clamp(1.2rem, 2vw + 1rem, 1.8rem);
+}
+
+h3 {
+    font-size: clamp(0.95rem, 1vw + 0.85rem, 1.25rem);
+}
+
+h4 {
+    font-size: clamp(0.85rem, 0.8vw + 0.75rem, 1.05rem);
+}
+
 /* Estilos de Botones */
 button {
     font-family: inherit;
@@ -474,7 +490,7 @@ button {
 .kpi-card.border-red { border-left: 5px solid var(--color-red); }
 
 .kpi-title {
-    font-size: 11px;
+    font-size: 0.6875rem; /* ~11px */
     color: var(--text-secondary);
     text-transform: uppercase;
     font-weight: 700;
@@ -483,7 +499,7 @@ button {
 }
 
 .kpi-value {
-    font-size: 26px;
+    font-size: clamp(1.4rem, 2.5vw + 0.8rem, 2.2rem);
     font-weight: 700;
     line-height: 1.1;
 }
@@ -1474,4 +1490,173 @@ button {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+}
+
+/* --- LEYENDA DINÁMICA DE GRÁFICOS --- */
+.legend-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem; /* ~12px */
+    padding: 0.25rem 0; /* ~4px */
+}
+
+.legend-row.legend-total {
+    padding: 0.375rem 0; /* ~6px */
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.3125rem; /* ~5px */
+}
+
+.legend-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem; /* ~6px */
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.legend-color-dot {
+    width: 0.625rem; /* ~10px */
+    height: 0.625rem;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: monospace;
+}
+
+.legend-row.legend-total .legend-label {
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.legend-row.legend-total .legend-value {
+    font-weight: 800;
+}
+
+/* --- TARJETAS DEL LISTADO MAESTRO DE CLIENTES --- */
+.client-card-layout {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem; /* ~4px */
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.client-card-title {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 0.84375rem; /* ~13.5px */
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.client-card-cuit {
+    grid-column: 1;
+    font-size: 0.71875rem; /* ~11.5px */
+    opacity: 0.85;
+    text-align: left;
+}
+
+.client-card-status {
+    grid-column: 2;
+    font-size: 0.625rem !important; /* ~10px */
+}
+
+/* --- VACÍOS Y METADATOS EN BUSCADORES --- */
+.list-empty-state {
+    text-align: center;
+    padding: 1.25rem; /* ~20px */
+    color: var(--text-muted);
+    font-size: 0.75rem; /* ~12px */
+}
+
+.search-item-meta {
+    opacity: 0.8;
+    font-size: 0.6875rem; /* ~11px */
+}
+
+/* --- TOOLTIPS DE PROCEDENCIA EN TABLAS --- */
+.relative {
+    position: relative;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.p-3 {
+    padding: 0.9375rem !important; /* ~15px */
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.font-mono {
+    font-family: monospace !important;
+}
+
+.text-xs {
+    font-size: 0.6875rem !important; /* ~11px */
+}
+
+.text-ellipsis {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.color-success {
+    color: var(--color-green) !important;
+}
+
+.font-semibold {
+    font-weight: 600 !important;
+}
+
+.audit-info-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem; /* ~16px */
+    height: 1rem;
+    font-size: 0.625rem; /* ~10px */
+    border-radius: 50%;
+    background-color: rgba(128,128,128,0.15);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.audit-tooltip {
+    position: absolute;
+    top: 1.5625rem; /* ~25px */
+    right: 0;
+    background-color: var(--text-primary);
+    color: var(--bg-secondary);
+    padding: 0.5rem 0.75rem; /* ~8px ~12px */
+    border-radius: 0.375rem; /* ~6px */
+    font-size: 0.625rem; /* ~10px */
+    font-weight: 500;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    z-index: 100;
+    min-width: 11.25rem; /* ~180px */
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+.audit-info-trigger:hover ~ .audit-tooltip {
+    opacity: 1;
+    visibility: visible;
 }
