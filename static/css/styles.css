@@ -450,16 +450,17 @@ button {
     display: block;
 }
 
-/* Regla especial para vistas con layout Maestro-Detalle */
-.view-pane:has(.master-detail-layout).active {
+/* Soporte compatible para layouts Maestro-Detalle sin depender de :has() */
+#view-clientes.active,
+#view-conciliacion.active {
     display: grid;
     grid-template-rows: 1fr;
     gap: 15px;
     overflow: hidden; /* Las subsecciones controlan su propio scroll */
 }
 
-.view-pane:has(.flow-selector-container):has(.master-detail-layout).active {
-    grid-template-rows: auto 1fr;
+#view-conciliacion.active {
+    grid-template-rows: auto 1fr; /* Reserva espacio para el selector de flujo superior */
 }
 
 /* TARJETAS KPI (DASHBOARD) */
