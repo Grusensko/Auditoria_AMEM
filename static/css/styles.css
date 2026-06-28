@@ -453,9 +453,13 @@ button {
 /* Regla especial para vistas con layout Maestro-Detalle */
 .view-pane:has(.master-detail-layout).active {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
     gap: 15px;
     overflow: hidden; /* Las subsecciones controlan su propio scroll */
+}
+
+.view-pane:has(.flow-selector-container):has(.master-detail-layout).active {
+    grid-template-rows: auto 1fr;
 }
 
 /* TARJETAS KPI (DASHBOARD) */
