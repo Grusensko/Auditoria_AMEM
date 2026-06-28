@@ -183,20 +183,27 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Control de apertura/cierre de sidebar en móviles
+    // Control de apertura/cierre de sidebar (Drawer en mobile, colapso manual en desktop)
     if (menuToggleBtn && appSidebar && sidebarOverlay) {
         menuToggleBtn.addEventListener("click", () => {
-            const isOpened = menuToggleBtn.classList.contains("active");
-            if (isOpened) {
-                menuToggleBtn.classList.remove("active");
-                appSidebar.classList.remove("active");
-                sidebarOverlay.classList.remove("active");
-                menuToggleBtn.setAttribute("aria-expanded", "false");
+            if (window.innerWidth > 1200) {
+                const appScreen = document.getElementById("app-screen");
+                if (appScreen) {
+                    appScreen.classList.toggle("sidebar-collapsed");
+                }
             } else {
-                menuToggleBtn.classList.add("active");
-                appSidebar.classList.add("active");
-                sidebarOverlay.classList.add("active");
-                menuToggleBtn.setAttribute("aria-expanded", "true");
+                const isOpened = menuToggleBtn.classList.contains("active");
+                if (isOpened) {
+                    menuToggleBtn.classList.remove("active");
+                    appSidebar.classList.remove("active");
+                    sidebarOverlay.classList.remove("active");
+                    menuToggleBtn.setAttribute("aria-expanded", "false");
+                } else {
+                    menuToggleBtn.classList.add("active");
+                    appSidebar.classList.add("active");
+                    sidebarOverlay.classList.add("active");
+                    menuToggleBtn.setAttribute("aria-expanded", "true");
+                }
             }
         });
 
@@ -1754,86 +1761,117 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             // 1. Renderizar Prestaciones (Vía 1)
-            const tbodyP = document.querySelector("#ficha-prestaciones-table tbody");
-            tbodyP.innerHTML = "";
+            const listP = document.getElementById("clientes-prestaciones-list");
+            listP.innerHTML = "";
             if (data.prestaciones.length > 0) {
                 data.prestaciones.forEach(p => {
                     let chipCol = "blue";
-                    if (p.estado_conciliacion === "CONCILIADO") chipCol = "green";
-                    else if (p.estado_conciliacion === "PENDIENTE_COBRO") chipCol = "orange";
-                    else if (p.estado_conciliacion === "DISCREPANCIA") chipCol = "red";
+                    let borderCol = "border-info";
+                    if (p.estado_conciliacion === "CONCILIADO") {
+                        chipCol = "green";
+                        borderCol = "border-success";
+                    } else if (p.estado_conciliacion === "PENDIENTE_COBRO") {
+                        chipCol = "orange";
+                        borderCol = "border-warning";
+                    } else if (p.estado_conciliacion === "DISCREPANCIA") {
+                        chipCol = "red";
+                        borderCol = "border-danger";
+                    }
                     
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td><strong>${p.paciente}</strong></td>
-                        <td>${formatPeriod(p.periodo)}</td>
-                        <td>${formatCurrency(p.monto)}</td>
-                        <td><span class="status-chip ${chipCol}">${p.estado_conciliacion}</span></td>
-                        <td class="relative text-center">
-                            <span class="audit-info-trigger">i</span>
-                            <div class="audit-tooltip">
-                                <strong>Procedencia:</strong><br>
-                                📝 Archivo: ${p.archivo_origen || "Desconocido"}<br>
-                                📍 Fila: ${p.nro_fila || "—"}
+                    const item = document.createElement("div");
+                    item.className = `listview-item ${borderCol}`;
+                    item.innerHTML = `
+                        <div class="listview-item-header">
+                            <span>${p.paciente}</span>
+                            <span class="status-chip ${chipCol}">${p.estado_conciliacion}</span>
+                        </div>
+                        <div class="listview-item-meta">
+                            <span>Período: ${formatPeriod(p.periodo)}</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="listview-item-amount color-blue font-mono">${formatCurrency(p.monto)}</span>
+                                <span class="relative">
+                                    <span class="audit-info-trigger">i</span>
+                                    <div class="audit-tooltip">
+                                        <strong>Procedencia:</strong><br>
+                                        📝 Archivo: ${p.archivo_origen || "Desconocido"}<br>
+                                        📍 Fila: ${p.nro_fila || "—"}
+                                    </div>
+                                </span>
                             </div>
-                        </td>
+                        </div>
                     `;
-                    tbodyP.appendChild(tr);
+                    listP.appendChild(item);
                 });
             } else {
-                tbodyP.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-3">Sin prestaciones registradas</td></tr>`;
+                listP.innerHTML = `<div class="list-empty-state">Sin prestaciones registradas</div>`;
             }
             
             // 2. Renderizar Facturas (Vía 2)
-            const tbodyF = document.querySelector("#ficha-facturas-table tbody");
-            tbodyF.innerHTML = "";
+            const listF = document.getElementById("clientes-facturas-list");
+            listF.innerHTML = "";
             if (data.facturas.length > 0) {
                 data.facturas.forEach(f => {
                     const isAct = f.estado.toUpperCase() === "ACTIVO";
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td class="font-mono text-xs">${f.comprobante_id}</td>
-                        <td>${f.fecha_emision}</td>
-                        <td>${formatCurrency(f.monto_total)}</td>
-                        <td><span class="status-chip ${isAct ? 'green' : 'red'}">${f.estado}</span></td>
-                        <td class="relative text-center">
-                            <span class="audit-info-trigger">i</span>
-                            <div class="audit-tooltip">
-                                <strong>Procedencia:</strong><br>
-                                📄 Archivo: ${f.archivo_origen || "Desconocido"}<br>
-                                📍 Fila: ${f.nro_fila || "—"}
+                    const borderCol = isAct ? "border-success" : "border-danger";
+                    
+                    const item = document.createElement("div");
+                    item.className = `listview-item ${borderCol}`;
+                    item.innerHTML = `
+                        <div class="listview-item-header">
+                            <span class="font-mono text-xs">${f.comprobante_id}</span>
+                            <span class="status-chip ${isAct ? 'green' : 'red'}">${f.estado}</span>
+                        </div>
+                        <div class="listview-item-meta">
+                            <span>Fecha: ${f.fecha_emision}</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="listview-item-amount color-blue font-mono">${formatCurrency(f.monto_total)}</span>
+                                <span class="relative">
+                                    <span class="audit-info-trigger">i</span>
+                                    <div class="audit-tooltip">
+                                        <strong>Procedencia:</strong><br>
+                                        📄 Archivo: ${f.archivo_origen || "Desconocido"}<br>
+                                        📍 Fila: ${f.nro_fila || "—"}
+                                    </div>
+                                </span>
                             </div>
-                        </td>
+                        </div>
                     `;
-                    tbodyF.appendChild(tr);
+                    listF.appendChild(item);
                 });
             } else {
-                tbodyF.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-3">Sin facturas registradas</td></tr>`;
+                listF.innerHTML = `<div class="list-empty-state">Sin facturas registradas</div>`;
             }
             
             // 3. Renderizar Banco (Vía 3)
-            const tbodyB = document.querySelector("#ficha-banco-table tbody");
-            tbodyB.innerHTML = "";
+            const listB = document.getElementById("clientes-banco-list");
+            listB.innerHTML = "";
             if (data.banco.length > 0) {
                 data.banco.forEach(b => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td>${b.fecha}</td>
-                        <td class="text-xs text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</td>
-                        <td><strong class="color-success">${formatCurrency(b.credito)}</strong></td>
-                        <td class="relative text-center">
-                            <span class="audit-info-trigger">i</span>
-                            <div class="audit-tooltip">
-                                <strong>Procedencia:</strong><br>
-                                🏦 Archivo: ${b.archivo_origen || "Desconocido"}<br>
-                                📍 Fila: ${b.nro_fila || "—"}
+                    const item = document.createElement("div");
+                    item.className = `listview-item border-success`;
+                    item.innerHTML = `
+                        <div class="listview-item-header">
+                            <span class="text-xs text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</span>
+                        </div>
+                        <div class="listview-item-meta">
+                            <span>Fecha: ${b.fecha}</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="listview-item-amount color-success font-mono">${formatCurrency(b.credito)}</span>
+                                <span class="relative">
+                                    <span class="audit-info-trigger">i</span>
+                                    <div class="audit-tooltip">
+                                        <strong>Procedencia:</strong><br>
+                                        🏦 Archivo: ${b.archivo_origen || "Desconocido"}<br>
+                                        📍 Fila: ${b.nro_fila || "—"}
+                                    </div>
+                                </span>
                             </div>
-                        </td>
+                        </div>
                     `;
-                    tbodyB.appendChild(tr);
+                    listB.appendChild(item);
                 });
             } else {
-                tbodyB.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:15px;">Sin depósitos identificados</td></tr>`;
+                listB.innerHTML = `<div class="list-empty-state">Sin depósitos identificados</div>`;
             }
             
             // Auto-scroll suave hacia el panel de detalle en pantallas chicas
