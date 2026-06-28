@@ -688,6 +688,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
         SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
         FROM prestaciones
         WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%'
+        ORDER BY fecha_factura ASC
     """, (f"%{nombre[:5]}%", nombre))
     prest_asoc = [dict(row) for row in cursor.fetchall()]
     
@@ -696,6 +697,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
         SELECT comprobante_id, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria, archivo_origen, nro_fila
         FROM facturas
         WHERE cuit_hash = ?
+        ORDER BY fecha_emision ASC
     """, (cuit_hash,))
     fact_asoc = [dict(row) for row in cursor.fetchall()]
     
@@ -704,6 +706,7 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
         SELECT id, fecha, concepto, detalle, credito, mes_auditoria, archivo_origen, nro_fila
         FROM movimientos_banco
         WHERE cuit_hash_asociado = ?
+        ORDER BY fecha ASC
     """, (cuit_hash,))
     banco_asoc = [dict(row) for row in cursor.fetchall()]
     
