@@ -1673,6 +1673,7 @@ button {
 }
 
 .audit-info-trigger {
+    position: static !important; /* Previene herencia de position: absolute de líneas anteriores */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1683,6 +1684,7 @@ button {
     background-color: rgba(128,128,128,0.15);
     color: var(--text-secondary);
     cursor: pointer;
+    margin: 0;
 }
 
 .audit-tooltip {
