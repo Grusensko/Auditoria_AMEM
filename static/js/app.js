@@ -1765,38 +1765,26 @@ document.addEventListener("DOMContentLoaded", () => {
             listP.innerHTML = "";
             if (data.prestaciones.length > 0) {
                 data.prestaciones.forEach(p => {
-                    let chipCol = "blue";
                     let borderCol = "border-info";
-                    if (p.estado_conciliacion === "CONCILIADO") {
-                        chipCol = "green";
-                        borderCol = "border-success";
-                    } else if (p.estado_conciliacion === "PENDIENTE_COBRO") {
-                        chipCol = "orange";
-                        borderCol = "border-warning";
-                    } else if (p.estado_conciliacion === "DISCREPANCIA") {
-                        chipCol = "red";
-                        borderCol = "border-danger";
-                    }
+                    if (p.estado_conciliacion === "CONCILIADO") borderCol = "border-success";
+                    else if (p.estado_conciliacion === "PENDIENTE_COBRO") borderCol = "border-warning";
+                    else if (p.estado_conciliacion === "DISCREPANCIA") borderCol = "border-danger";
                     
                     const item = document.createElement("div");
                     item.className = `listview-item ${borderCol}`;
                     
-                    // Texto del tooltip sanitizado para JS inline
                     const tooltipText = `<strong>Procedencia:</strong><br>📝 Archivo: ${p.archivo_origen || 'Desconocido'}<br>📍 Fila: ${p.nro_fila || '—'}`;
                     
                     item.innerHTML = `
-                        <div class="listview-item-main">
-                            <div class="listview-item-title">${p.paciente}</div>
-                            <div class="listview-item-amount color-blue">${formatCurrency(p.monto)}</div>
-                        </div>
+                        <div class="listview-item-title" title="${p.paciente}">${p.paciente}</div>
                         <div class="listview-item-details">
-                            <div class="listview-item-meta-group">
-                                <span class="listview-item-badge ${chipCol}">${p.estado_conciliacion}</span>
-                                <span class="listview-item-date">Período: ${formatPeriod(p.periodo)}</span>
+                            <span class="listview-item-date">${formatPeriod(p.periodo)}</span>
+                            <div class="listview-item-right">
+                                <span class="listview-item-amount color-blue">${formatCurrency(p.monto)}</span>
+                                <span class="audit-info-trigger" 
+                                      onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                      onmouseleave="hideTooltip()">i</span>
                             </div>
-                            <span class="audit-info-trigger" 
-                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
-                                  onmouseleave="hideTooltip()">i</span>
                         </div>
                     `;
                     listP.appendChild(item);
@@ -1812,6 +1800,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 data.facturas.forEach(f => {
                     const isAct = f.estado.toUpperCase() === "ACTIVO";
                     const borderCol = isAct ? "border-success" : "border-danger";
+                    const statusIndicator = `<span class="status-indicator ${isAct ? 'green' : 'red'}" title="${f.estado}"></span>`;
                     
                     const item = document.createElement("div");
                     item.className = `listview-item ${borderCol}`;
@@ -1819,18 +1808,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tooltipText = `<strong>Procedencia:</strong><br>📄 Archivo: ${f.archivo_origen || 'Desconocido'}<br>📍 Fila: ${f.nro_fila || '—'}`;
                     
                     item.innerHTML = `
-                        <div class="listview-item-main">
-                            <div class="listview-item-title font-mono text-xs">${f.comprobante_id}</div>
-                            <div class="listview-item-amount color-blue">${formatCurrency(f.monto_total)}</div>
-                        </div>
+                        <div class="listview-item-title" title="${f.comprobante_id}">${f.comprobante_id}</div>
                         <div class="listview-item-details">
                             <div class="listview-item-meta-group">
-                                <span class="listview-item-badge ${isAct ? 'green' : 'red'}">${f.estado}</span>
-                                <span class="listview-item-date">Fecha: ${f.fecha_emision}</span>
+                                <span class="listview-item-date">${f.fecha_emision}</span>
+                                ${statusIndicator}
                             </div>
-                            <span class="audit-info-trigger" 
-                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
-                                  onmouseleave="hideTooltip()">i</span>
+                            <div class="listview-item-right">
+                                <span class="listview-item-amount color-blue">${formatCurrency(f.monto_total)}</span>
+                                <span class="audit-info-trigger" 
+                                      onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                      onmouseleave="hideTooltip()">i</span>
+                            </div>
                         </div>
                     `;
                     listF.appendChild(item);
@@ -1850,17 +1839,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const tooltipText = `<strong>Procedencia:</strong><br>🏦 Archivo: ${b.archivo_origen || 'Desconocido'}<br>📍 Fila: ${b.nro_fila || '—'}`;
                     
                     item.innerHTML = `
-                        <div class="listview-item-main">
-                            <div class="listview-item-title text-ellipsis" title="${b.concepto} ${b.detalle || ''}">${b.concepto}</div>
-                            <div class="listview-item-amount color-success">${formatCurrency(b.credito)}</div>
-                        </div>
+                        <div class="listview-item-title" title="${b.concepto}">${b.concepto}</div>
                         <div class="listview-item-details">
-                            <div class="listview-item-meta-group">
-                                <span class="listview-item-date">Fecha: ${b.fecha}</span>
+                            <span class="listview-item-date">${b.fecha}</span>
+                            <div class="listview-item-right">
+                                <span class="listview-item-amount color-success">${formatCurrency(b.credito)}</span>
+                                <span class="audit-info-trigger" 
+                                      onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
+                                      onmouseleave="hideTooltip()">i</span>
                             </div>
-                            <span class="audit-info-trigger" 
-                                  onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
-                                  onmouseleave="hideTooltip()">i</span>
                         </div>
                     `;
                     listB.appendChild(item);

@@ -1784,12 +1784,14 @@ button {
     background-color: #FFFFFF;
     border: 1px solid var(--border-color);
     border-radius: 10px;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem; /* ~10px ~14px */
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    justify-content: space-between;
+    height: 4.6875rem; /* ~75px rígidos para alinear items horizontalmente de forma perfecta */
+    box-sizing: border-box;
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
 }
 
 .listview-item:hover {
@@ -1798,18 +1800,35 @@ button {
     box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05);
 }
 
-.listview-item-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-}
-
 .listview-item-title {
     font-size: 0.8125rem; /* ~13px */
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.listview-item-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.listview-item-meta-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.listview-item-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .listview-item-amount {
@@ -1827,40 +1846,27 @@ button {
     color: var(--color-green);
 }
 
-.listview-item-details {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-}
-
-.listview-item-meta-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.listview-item-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: 0.625rem; /* ~10px */
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.listview-item-badge.blue { background-color: rgba(37, 99, 235, 0.1); color: var(--color-blue); }
-.listview-item-badge.green { background-color: rgba(5, 150, 105, 0.1); color: var(--color-green); }
-.listview-item-badge.orange { background-color: rgba(217, 119, 6, 0.1); color: var(--color-orange); }
-.listview-item-badge.red { background-color: rgba(220, 38, 38, 0.1); color: var(--color-red); }
-
 .listview-item-date {
     font-size: 0.6875rem; /* ~11px */
     color: var(--text-secondary);
     font-weight: 500;
+}
+
+/* Indicadores de estado circulares muy sutiles */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    cursor: help;
+}
+
+.status-indicator.green {
+    background-color: var(--color-green);
+}
+
+.status-indicator.red {
+    background-color: var(--color-red);
 }
 
 /* Espacio superior en sidebar para no tapar con el botón hamburguesa fijo */
