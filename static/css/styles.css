@@ -1783,6 +1783,7 @@ button {
 }
 
 .listview-item {
+    position: relative;
     background-color: #FFFFFF;
     border: 1px solid var(--border-color);
     border-radius: 10px;
