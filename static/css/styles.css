@@ -585,7 +585,7 @@ button {
 
 .master-detail-layout {
     display: grid;
-    grid-template-columns: clamp(260px, 28vw, 360px) 1fr;
+    grid-template-columns: clamp(200px, 22vw, 280px) 1fr;
     gap: clamp(15px, 2vw, 25px);
     height: 100%;
     overflow: hidden;
@@ -683,6 +683,8 @@ button {
     height: 100%;
     overflow-y: auto;
     padding-right: 5px;
+    container-type: inline-size;
+    container-name: detail-container;
 }
 
 /* Comportamiento responsivo basado en el ancho del panel (Container Queries) */
@@ -1414,8 +1416,8 @@ button {
     display: none;
 }
 
-/* Comportamiento móvil por debajo de 768px */
-@media (max-width: 768px) {
+/* Comportamiento móvil por debajo de 1024px */
+@media (max-width: 1024px) {
     #app-screen.screen.active {
         grid-template-columns: 1fr;
     }
@@ -1455,13 +1457,12 @@ button {
     }
     
     .menu-toggle {
-        display: block; /* Visible en móviles */
+        display: block; /* Visible en móviles y tablets */
     }
     
     .app-header {
         padding: 0 16px;
     }
-}
 }
 
 /* --- GLOBAL TOOLTIP SYSTEM --- */
@@ -1663,4 +1664,65 @@ button {
 .audit-info-trigger:hover ~ .audit-tooltip {
     opacity: 1;
     visibility: visible;
+}
+
+/* --- CLASES DE FICHA DETALLE Y TABLAS (100% CSS) --- */
+.ficha-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem; /* ~16px */
+    margin-bottom: 1.5rem;
+}
+
+.ficha-col {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 480px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.ficha-col-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem; /* ~12px */
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    padding-bottom: 0.5rem; /* ~8px */
+}
+
+.ficha-col-title {
+    margin: 0;
+    font-size: 0.75rem; /* ~12px */
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.ficha-col-amount {
+    font-size: 0.75rem; /* ~12px */
+    font-weight: 700;
+    color: var(--color-blue);
+}
+
+.ficha-col-amount.amount-green {
+    color: var(--color-green);
+}
+
+/* Comportamiento responsivo para las 3 tablas de conciliación de la ficha */
+@container detail-container (max-width: 800px) {
+    .ficha-grid {
+        grid-template-columns: 1fr; /* Apilar en una columna vertical */
+        gap: 0.75rem;
+    }
+    
+    .ficha-col {
+        max-height: 320px; /* Altura máxima controlada para vista móvil/apilada */
+    }
 }

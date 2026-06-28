@@ -290,13 +290,13 @@
                             </div>
                             
                             <!-- COLUMNAS DETALLES COMPACTAS (3 columnas) -->
-                            <div class="ficha-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div class="ficha-grid">
                                 
                                 <!-- COLUMNA 1: PRESTACIONES -->
-                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
-                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Prestaciones (Vía 1)</h4>
-                                        <span id="col-prest-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-blue); font-family: monospace;">$0.00</span>
+                                <div class="ficha-col">
+                                    <div class="ficha-col-header">
+                                        <h4 class="ficha-col-title">Prestaciones (Vía 1)</h4>
+                                        <span id="col-prest-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
                                     <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
                                         <table class="data-table compact" id="ficha-prestaciones-table" style="width: 100%;">
@@ -315,10 +315,10 @@
                                 </div>
                                 
                                 <!-- COLUMNA 2: FACTURAS -->
-                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
-                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Facturas AFIP (Vía 2)</h4>
-                                        <span id="col-fact-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-blue); font-family: monospace;">$0.00</span>
+                                <div class="ficha-col">
+                                    <div class="ficha-col-header">
+                                        <h4 class="ficha-col-title">Facturas AFIP (Vía 2)</h4>
+                                        <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
                                     <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
                                         <table class="data-table compact" id="ficha-facturas-table" style="width: 100%;">
@@ -337,10 +337,10 @@
                                 </div>
                                 
                                 <!-- COLUMNA 3: BANCO -->
-                                <div class="ficha-col" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; max-height: 480px; overflow: hidden; position: relative;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 8px;">
-                                        <h4 style="margin: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Ingresos Banco (Vía 3)</h4>
-                                        <span id="col-banco-monto-total" style="font-size: 12px; font-weight: 700; color: var(--color-green); font-family: monospace;">$0.00</span>
+                                <div class="ficha-col">
+                                    <div class="ficha-col-header">
+                                        <h4 class="ficha-col-title">Ingresos Banco (Vía 3)</h4>
+                                        <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
                                     </div>
                                     <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
                                         <table class="data-table compact" id="ficha-banco-table" style="width: 100%;">
