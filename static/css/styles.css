@@ -746,11 +746,16 @@ button {
 
 /* STATUS CHIPS */
 .status-chip {
-    display: inline-block;
-    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 3px 8px;
+    min-height: 20px;
+    box-sizing: border-box;
     border-radius: 4px;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .status-chip.green { background-color: var(--color-green-light); color: var(--color-green); }
@@ -955,9 +960,10 @@ button {
     display: block !important;
     width: 100% !important;
     color: var(--text-primary) !important;
-    border-radius: 10px !important;
-    padding: 12px 14px !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 0.75rem 0.4rem 0.75rem !important;
     font-size: 13px !important;
+    min-height: auto !important;
     line-height: 1.4 !important;
     transition: all 0.2s ease-in-out !important;
     border: 1px solid var(--border-color) !important;
@@ -1419,4 +1425,36 @@ button {
         padding: 0 16px;
     }
 }
+}
 
+/* --- GLOBAL TOOLTIP SYSTEM --- */
+.status-chip {
+    cursor: help;
+}
+
+#global-tooltip {
+    position: fixed;
+    background-color: var(--text-primary);
+    color: var(--bg-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+    max-width: 220px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+    z-index: 99999;
+    pointer-events: none;
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+#global-tooltip.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}

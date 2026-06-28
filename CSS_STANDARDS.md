@@ -307,124 +307,6 @@ Para lograr formularios premium, minimalistas y limpios, se debe implementar el 
 
 Para lograr una navegación fluida en dispositivos móviles, se debe utilizar una estructura limpia de menú de navegación en el header con un botón de control hamburguesa que realice una transición visual premium convirtiéndose en una "X" cuando el menú esté activo.
 
-### A. Marcado HTML Semántico
-```html
-<header class="site-header">
-    <div class="header-container">
-        <a href="/" class="site-logo">MDNTEC</a>
-        
-        <!-- Botón Hamburguesa con 3 líneas internas independientes -->
-        <button class="menu-toggle" id="menu-toggle-btn" aria-label="Alternar menú de navegación" aria-expanded="false">
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-        </button>
-
-        <!-- Navegación del sitio -->
-        <nav class="nav-menu" id="site-nav">
-            <ul class="nav-list">
-                <li><a href="#services" class="nav-link">Servicios</a></li>
-                <li><a href="#industries" class="nav-link">Industrias</a></li>
-                <li><a href="#projects" class="nav-link">Proyectos</a></li>
-                <li><a href="#contact" class="nav-link">Contacto</a></li>
-            </ul>
-        </nav>
-    </div>
-</header>
-```
-
-### B. Lógica de Estilos CSS (Maquetación y Animación a "X")
-
-1. **Botón Hamburguesa (Estático y Activo):**
-   El botón utiliza posicionamiento absoluto en sus líneas internas y la propiedad `transform` para lograr un cruce milimétrico y simétrico al convertirse en la "X", evitando holguras desalineadas.
-2. **Navegación Móvil Desplizable (Responsive Drawer):**
-   En resoluciones pequeñas, el menú de navegación se oculta a la derecha mediante `transform: translateX(100%)` y se desliza suavemente aplicando transiciones fluidas junto con un efecto difuminado de fondo (`backdrop-filter`).
-
-```css
-/* 1. Estilos del Botón de Control */
-.menu-toggle {
-    position: relative;
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    display: none; /* Oculto en pantallas grandes */
-    z-index: 1000;
-}
-
-.hamburger-line {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background-color: var(--text-primary);
-    border-radius: 2px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Distribución vertical de las tres barras */
-.hamburger-line:nth-child(1) { top: 6px; }
-.hamburger-line:nth-child(2) { top: 14px; }
-.hamburger-line:nth-child(3) { top: 22px; }
-
-/* ANIMACIÓN: Transformación de Hamburguesa a "X" al añadir la clase .active */
-.menu-toggle.active .hamburger-line:nth-child(1) {
-    /* Desplaza en Y al centro exacto (14px - 6px = 8px) y gira 45 grados */
-    transform: translateY(8px) rotate(45deg);
-    background-color: var(--color-blue);
-}
-
-.menu-toggle.active .hamburger-line:nth-child(2) {
-    /* Desvanece y encoge la línea central */
-    opacity: 0;
-    transform: scaleX(0);
-}
-
-.menu-toggle.active .hamburger-line:nth-child(3) {
-    /* Desplaza en Y al centro exacto (14px - 22px = -8px) y gira -45 grados */
-    transform: translateY(-8px) rotate(-45deg);
-    background-color: var(--color-blue);
-}
-
-/* 2. Navegación Móvil Drawer (Mobile Sidebar) */
-@media (max-width: 768px) {
-    .menu-toggle {
-        display: block; /* Visible en móviles */
-    }
-
-    .nav-menu {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: min(320px, 80vw);
-        height: 100vh;
-        background-color: oklch(var(--bg-secondary) / 0.85);
-        backdrop-filter: blur(12px);
-        border-left: 1px solid var(--border-color);
-        padding: 80px 24px 24px; /* Relleno superior para evitar solaparse con el logo/botón */
-        display: flex;
-        flex-direction: column;
-        
-        /* Desplazamiento inicial fuera de pantalla */
-        transform: translateX(100%);
-        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* Activación del menú lateral deslizante */
-    .nav-menu.active {
-        transform: translateX(0);
-        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.05);
-    }
-
-    .nav-list {
-        flex-direction: column;
-        gap: 20px;
-    }
-}
-```
-
 ---
 
 ## 💡 10. Tips de CSS Moderno Recomendados (Buenas Prácticas)
@@ -433,83 +315,63 @@ Basado en las técnicas modernas de optimización de interfaz, se recomienda la 
 
 ### A. Mejorar el Ajuste de Textos (`text-wrap: balance` y `text-wrap: pretty`)
 Evita la aparición de palabras huérfanas en títulos o párrafos descriptivos.
-* **`text-wrap: balance`:** Distribuye el texto de forma equitativa entre líneas. Ideal para cabeceras y títulos cortos (menos de 4 líneas).
-* **`text-wrap: pretty`:** Optimiza la distribución del final del bloque para evitar que la última palabra quede sola. Ideal para párrafos de texto extensos.
-
-```css
-h1, h2, h3, .view-title {
-    text-wrap: balance;
-}
-
-p, .kpi-subtitle {
-    text-wrap: pretty;
-}
-```
 
 ### B. Mezclar Colores Nativamente con `color-mix()`
-Permite mezclar dos colores en un espacio de color específico de manera directa sin preprocesadores. Es ideal para crear variantes transparentes o contrastadas en base a tus variables CSS:
+Permite mezclar dos colores en un espacio de color específico de manera directa sin preprocesadores.
+
+### C. Uso del Selector de Relación `:has()`
+Permite dar estilos a un elemento en función de si contiene a cierto descendiente o estado.
+
+### D. Propiedades Lógicas de Posicionamiento y Márgenes
+Favorecen el diseño internacionalizable y comprensible en lugar de las físicas tradicionales.
+
+### E. Anidamiento Nativo (CSS Nesting)
+Organiza tus estilos jerárquicamente de manera nativa sin Sass/Less.
+
+---
+
+## 📏 11. Reglas Generales de Maquetación y Medidas
+
+Para asegurar la coherencia del diseño, accesibilidad y facilidad de mantenimiento del proyecto, el desarrollo de estilos debe cumplir con las siguientes restricciones fundamentales:
+
+### A. Unidad de Medida Preferida: `rem`
+* **Estándar:** Se utilizará la unidad **`rem`** como la medida preferida para fuentes, márgenes, rellenos (padding) y dimensionamiento de contenedores.
+* **Excepción:** Se reservan los píxeles (`px`) exclusivamente para bordes delgados (ej. `1px solid var(--border-color)`) o sombras muy específicas, y porcentajes (`%`) o fracciones (`fr`) para divisiones de cuadrículas.
+* **Propósito:** Mantener la consistencia con la escala de accesibilidad del navegador del usuario (si el usuario cambia el tamaño base de letra, toda la interfaz se escalará proporcionalmente de forma automática).
 
 ```css
 .card-item {
-    /* Mezcla el color primario al 15% con fondo transparente en srgb */
-    background-color: color-mix(in srgb, var(--color-blue) 15%, transparent);
+    padding: 1.5rem;      /* ~24px */
+    margin-bottom: 1rem;  /* ~16px */
+    border-radius: 0.5rem; /* ~8px */
 }
 ```
 
-### C. Uso del Selector de Relación `:has()`
-Permite dar estilos a un elemento en función de si contiene a cierto descendiente o estado. Actúa como el esperado "selector de padres":
+### B. Uso Preferente de CSS Grid sobre Flexbox
+* **Grid primero:** Se prioriza el uso de **CSS Grid** para el diseño estructural (tanto bidimensional como unidimensional) para forzar una alineación geométrica fluida.
+* **Cuándo usar Flexbox:** Se permite y recomienda usar **Flexbox** en situaciones puntuales de distribución lineal simple y unidimensional:
+  * Elementos inline pequeños agrupados (ej. badges en fila, botones alineados en el pie de tarjeta).
+  * Centrado de iconos dentro de un círculo o botón.
+  * Barras de herramientas simples.
 
-```css
-/* Da estilos a una tarjeta de formulario solo si contiene un input con error */
-.form-field:has(.input-error) {
-    border-color: var(--color-red);
-}
+### C. Prohibición de Etiquetas `<br />` para Maquetación
+* **Regla estricta:** **Queda terminantemente prohibido utilizar etiquetas `<br />`** (saltos de línea) en el HTML con el fin de generar espaciado, márgenes verticales o acomodar elementos.
+* **Buenas prácticas:** Todo control de distancia, saltos, y espaciado vertical u horizontal debe ser manejado de forma exclusiva en CSS utilizando márgenes (`margin-bottom`), paddings o la propiedad `gap` de Grid/Flexbox.
 
-/* Cambia el fondo del header de la app si hay algún panel lateral abierto */
-.app-header:has(~ .sidebar.active) {
-    backdrop-filter: blur(10px);
-}
-```
+```html
+<!-- INCORRECTO -->
+<div class="card-title">Título</div>
+<br />
+<div class="card-desc">Descripción</div>
 
-### D. Propiedades Lógicas de Posicionamiento y Márgenes
-Favorecen el diseño internacionalizable y comprensible en lugar de las físicas tradicionales:
-* **`margin-inline: auto`** en lugar de `margin-left: auto; margin-right: auto;`.
-* **`padding-block: 10px`** en lugar de `padding-top: 10px; padding-bottom: 10px;`.
-* **`inset: 0`** en lugar de `top: 0; right: 0; bottom: 0; left: 0;`.
-
-```css
-.modal-overlay {
-    position: fixed;
-    inset: 0; /* Ocupa toda la pantalla */
-    display: grid;
-    place-items: center;
-}
-```
-
-### E. Anidamiento Nativo (CSS Nesting)
-Organiza tus estilos jerárquicamente de manera nativa sin Sass/Less, lo cual reduce la repetición de selectores y mejora la mantenibilidad:
-
-```css
-.sidebar {
-    background-color: var(--bg-secondary);
-    
-    .menu-item {
-        color: var(--text-secondary);
-        
-        &:hover {
-            color: var(--text-primary);
-        }
-        
-        &.active {
-            color: var(--color-blue);
-        }
-    }
-}
+<!-- CORRECTO -->
+<div class="card-title" style="margin-bottom: 0.75rem;">Título</div>
+<div class="card-desc">Descripción</div>
 ```
 
 ---
 
-## 📝 11. Resumen de Buenas Prácticas CSS
+## 📝 12. Resumen de Buenas Prácticas CSS
 * **Uso exclusivo de variables CSS (`:root`):** Todos los colores, tipografías y sombras deben mapearse a variables para facilitar cambios globales y soporte para temas (claro/oscuro).
 * **Reset de Box-Model:** Siempre usar `box-sizing: border-box` en todos los elementos.
 * **Scrollbars personalizadas y discretas:** Usar selectores `-webkit-scrollbar` para estilizar las barras de scroll y que no rompan la estética premium.

@@ -8,7 +8,8 @@ A front-end layout specialist with deep command of modern CSS, from flexbox and 
 
 ## Key Principles
 
-- Use flexbox for one-dimensional layouts (rows or columns) and CSS Grid for two-dimensional layouts (rows and columns simultaneously)
+- Prefer CSS Grid for layout structure (both 2D and 1D) to enforce geometric alignment; use Flexbox only in specific scenarios like simple linear components, inline item alignments, or button groups
+- Prefer `rem` units for typography, margins, paddings, and container dimensions to preserve accessibility and layout scaling consistency; reserve pixels (`px`) only for border thicknesses or specific shadow offsets
 - Embrace custom properties (CSS variables) for theming, spacing scales, and any value that repeats or needs runtime adjustment
 - Prefer OKLCH (`oklch(L C H)`) over Hex/HSL/RGB for colors to ensure perceptually uniform lightness, easy hover states via calc(), and excellent contrast accessibility
 - Design responsive modules using Container Queries (`@container`) and fluid calculations (`clamp()`) based on container size instead of global viewport breakpoints
@@ -36,6 +37,7 @@ A front-end layout specialist with deep command of modern CSS, from flexbox and 
 
 ## Pitfalls to Avoid
 
+- Never use `<br />` tags in HTML for visual spacing, vertical margins, or element positioning; use CSS margins, paddings, or `gap` instead
 - Do not use fixed pixel widths or heights for fluid layout containers; let CSS Grid and fluid units size them naturally
 - Do not mix color models inconsistently; standardize on OKLCH for system theme coordinates
 - Do not stack z-index values arbitrarily; establish a z-index scale in custom properties

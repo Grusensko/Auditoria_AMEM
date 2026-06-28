@@ -1564,12 +1564,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                     
+                    let tooltipText = tagLabel === "Banco" 
+                        ? "Clientes identificados a partir de depósitos en extractos bancarios."
+                        : "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
+
                     const btn = document.createElement("button");
-                    btn.innerHTML = `<div style="font-weight:700; font-size:12.5px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">👤 ${c.nombre}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; opacity:0.85;">
-                        <span>CUIT: ${c.cuit}</span>
-                        <span class="status-chip ${tagClass}" style="font-size:8px; padding:1px 5px; margin:0; line-height:1; border-radius:3px;">${tagLabel}</span>
-                    </div>`;
+                    btn.innerHTML = `<div style="display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; width: 100%; margin: 0; padding: 0;"><div style="grid-column: 1 / -1; font-weight: 700; font-size: 13.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">👤 ${c.nombre}</div><div style="grid-column: 1; font-size: 11.5px; opacity: 0.85; text-align: left;">CUIT: ${c.cuit}</div><span class="status-chip ${tagClass}" style="grid-column: 2; font-size: 10px;" onmouseenter="showTooltip(event, '${tooltipText}')" onmouseleave="hideTooltip()">${tagLabel}</span></div>`;
                     
                     btn.addEventListener("click", () => {
                         selectedClienteHash = c.cuit_hash;
@@ -1601,13 +1601,20 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitReal}`;
             
             const catBadge = document.getElementById("ficha-cliente-categoria-badge");
-            catBadge.textContent = categoria;
             let catClass = "blue";
+            let tooltipText = "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
             const catLower = categoria.toLowerCase();
             if (catLower.includes("obra social") || catLower.includes("os")) catClass = "green";
             else if (catLower.includes("prepaga")) catClass = "blue";
             else if (catLower.includes("particular")) catClass = "orange";
+            else if (catLower.includes("banco")) {
+                catClass = "orange";
+                tooltipText = "Clientes identificados a partir de depósitos en extractos bancarios.";
+            }
             catBadge.className = `status-chip ${catClass}`;
+            catBadge.innerHTML = categoria;
+            catBadge.onmouseenter = (e) => showTooltip(e, tooltipText);
+            catBadge.onmouseleave = () => hideTooltip();
 
             // Calcular montos totales para cada columna
             const totalPrestaciones = data.prestaciones.reduce((sum, p) => sum + p.monto, 0);
@@ -1982,3 +1989,50 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+// --- GLOBAL TOOLTIP SYSTEM ---
+const globalTooltip = document.createElement('div');
+globalTooltip.id = 'global-tooltip';
+document.body.appendChild(globalTooltip);
+
+let tooltipTimer = null;
+
+window.showTooltip = function(event, text) {
+    // Limpiar timer previo si existiera
+    if (tooltipTimer) clearTimeout(tooltipTimer);
+    
+    // Guardar referencia al elemento original
+    const targetEl = event.target;
+    
+    tooltipTimer = setTimeout(() => {
+        globalTooltip.innerHTML = text;
+        globalTooltip.classList.add('active');
+        
+        const rect = targetEl.getBoundingClientRect();
+        const tooltipRect = globalTooltip.getBoundingClientRect();
+        
+        // Por defecto arriba centrado
+        let top = rect.top - tooltipRect.height - 8;
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        
+        // Si se sale por arriba, mostrar debajo
+        if (top < 10) {
+            top = rect.bottom + 8;
+        }
+        
+        // Si se sale por izquierda/derecha
+        if (left < 10) {
+            left = 10;
+        } else if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+        
+        globalTooltip.style.top = `${top}px`;
+        globalTooltip.style.left = `${left}px`;
+    }, 1000); // 1 segundo de delay
+};
+
+window.hideTooltip = function() {
+    if (tooltipTimer) clearTimeout(tooltipTimer);
+    globalTooltip.classList.remove('active');
+};
