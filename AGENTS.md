@@ -12,7 +12,12 @@ Este archivo define los comportamientos, reglas del negocio y pautas técnicas q
    * **Mes N+2 o N+3 (Cobro):** El dinero se recibe en el Banco Supervielle.
    * *Regla para la IA:* Al buscar conciliaciones, la IA debe buscar depósitos bancarios de un CUIT/Monto hasta 90 días después de la fecha de la prestación.
    * *Retenciones:* AMEM es una asociación sin fines de lucro exenta de retenciones impositivas, por lo que el monto facturado y el cobro bancario correspondiente deben coincidir exactamente al centavo.
-2. **Identificación de Clientes:**
+2. **Corte Contable y Datos de 2025 (Filtro Especial de Cierre):**
+   * **Objetivo:** La auditoría formal abarca desde el `2026-01-01` en adelante. No deben mostrarse cobros bancarios anteriores a esa fecha, ni tampoco prestaciones o facturas de 2025 que se hayan cobrado en 2025 (ya que forman ciclos completamente cerrados).
+   * **Ingesta de Banco:** Los movimientos del extracto bancario se filtran estrictamente para fechas `>= 2026-01-01`.
+   * **Ingesta de Prestaciones:** Las prestaciones de fines de 2025 se cargan *solo si* la fecha de cobro registrada en Excel está en 2026 (`>= 2026-01-01`) o si permanece impagada (campo vacío). Si se cobraron en 2025, se omiten.
+   * **Ingesta de Facturas (AFIP):** Las facturas de fines de 2025 se cargan *solo si* coinciden con una prestación de fines de 2025 que fue cobrada en 2026 o sigue impagada. Si la prestación fue cobrada en 2025, o si no hay ninguna prestación que justifique su cobro en 2026, la factura de 2025 se omite.
+3. **Identificación de Clientes:**
    * Los clientes (en su mayoría Obras Sociales como OSEP, OSDE, OSECAC, PAMI, etc.) se identifican únicamente por su **CUIT/CUIL**.
    * Debe existir siempre una correspondencia legible para humanos (Nombre/Razón Social).
    * La IA debe usar el archivo `OS_CUIT_MAP` en `conciliador.py` para mapear los nombres cortos del Excel de prestaciones con los CUITs oficiales de AFIP.
