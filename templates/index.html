@@ -42,10 +42,6 @@
         
         <!-- SIDEBAR DE NAVEGACIÓN -->
         <aside class="sidebar" id="app-sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-logo">📊</span>
-                <span class="brand-text">AMEM</span>
-            </div>
             <nav class="sidebar-menu">
                 <button class="menu-item active" data-target="view-dashboard">
                     <span class="menu-icon">📈</span>
@@ -88,14 +84,22 @@
             
             <!-- HEADER DE APLICACIÓN -->
             <header class="app-header">
-                <!-- Botón de Control del Menú Móvil -->
-                <button class="menu-toggle" id="menu-toggle-btn" aria-label="Alternar menú de navegación" aria-expanded="false">
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                    <span class="hamburger-line"></span>
-                </button>
+                <div class="header-left-group">
+                    <!-- Botón de Control del Menú -->
+                    <button class="menu-toggle" id="menu-toggle-btn" aria-label="Alternar menú de navegación" aria-expanded="false">
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                    </button>
+                    
+                    <!-- Logo AMEM en el Header -->
+                    <div class="header-brand">
+                        <span class="brand-logo">📊</span>
+                        <span class="brand-text">AMEM</span>
+                    </div>
+                </div>
                 
-                <div class="header-left">
+                <div class="header-right-group">
                     <div class="badge-status">
                         <span class="badge-dot green"></span>
                         <span class="badge-text">Auditoría Conectada</span>
@@ -298,19 +302,8 @@
                                         <h4 class="ficha-col-title">Prestaciones (Vía 1)</h4>
                                         <span id="col-prest-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
-                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
-                                        <table class="data-table compact" id="ficha-prestaciones-table" style="width: 100%;">
-                                            <thead>
-                                                <tr>
-                                                    <th>Paciente</th>
-                                                    <th>Período</th>
-                                                    <th>Monto</th>
-                                                    <th>Estado</th>
-                                                    <th style="width: 20px;"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="listview-compact" id="clientes-prestaciones-list">
+                                        <!-- Se carga dinámicamente -->
                                     </div>
                                 </div>
                                 
@@ -320,19 +313,8 @@
                                         <h4 class="ficha-col-title">Facturas AFIP (Vía 2)</h4>
                                         <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
-                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
-                                        <table class="data-table compact" id="ficha-facturas-table" style="width: 100%;">
-                                            <thead>
-                                                <tr>
-                                                    <th>Factura ID</th>
-                                                    <th>Fecha</th>
-                                                    <th>Monto</th>
-                                                    <th>Estado</th>
-                                                    <th style="width: 20px;"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="listview-compact" id="clientes-facturas-list">
+                                        <!-- Se carga dinámicamente -->
                                     </div>
                                 </div>
                                 
@@ -342,18 +324,8 @@
                                         <h4 class="ficha-col-title">Ingresos Banco (Vía 3)</h4>
                                         <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
                                     </div>
-                                    <div class="table-compact-wrapper" style="flex-grow: 1; overflow-y: auto;">
-                                        <table class="data-table compact" id="ficha-banco-table" style="width: 100%;">
-                                            <thead>
-                                                <tr>
-                                                    <th>Fecha</th>
-                                                    <th>Concepto</th>
-                                                    <th>Monto</th>
-                                                    <th style="width: 20px;"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="listview-compact" id="clientes-banco-list">
+                                        <!-- Se carga dinámicamente -->
                                     </div>
                                 </div>
                                 
