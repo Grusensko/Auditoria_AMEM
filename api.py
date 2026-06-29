@@ -22,6 +22,37 @@ from excel_exporter import generate_excel_report
 # Inicializar base de datos
 init_db()
 
+OFFICIAL_NAMES_MAP = {
+    "30623978164": "OSEP (Obra Social de los Empleados Públicos de Mendoza)",
+    "30546741253": "OSDE (Organización de Servicios Directos Empresarios)",
+    "30683032227": "Unión Personal (Obra Social de la Unión del Personal Civil de la Nación)",
+    "30713045000": "Prevención Salud (Sancor Seguros)",
+    "30679232106": "OSECAC (Obra Social de los Empleados de Comercio y Actividades Afines)",
+    "30661876715": "OSPE (Obra Social de Petroleros)",
+    "30657325372": "OSPELSYM (Obra Social del Personal de Estaciones de Servicio)",
+    "30522763922": "PAMI (Instituto Nacional de Servicios Sociales para Jubilados y Pensionados)",
+    "30714906948": "IOSFA (Instituto de Obra Social de las Fuerzas Armadas)",
+    "30533836808": "CIMESA (Círculo Médico de Mendoza)",
+    "30680620713": "AYE (Obra Social del Personal Jerárquico del Agua y la Energía)",
+    "30546101890": "Mutual del Personal de Agua y Energía Eléctrica",
+    "30516748385": "TV Salud (Obra Social del Personal de Televisión)",
+    "30547339416": "OSPRERA (Obra Social del Personal Rural y Estibadores)",
+    "33531576859": "OSPAV (Obra Social del Personal de la Actividad Vitivinícola)",
+    "30715815709": "Incluir Salud (Programa Federal Incluir Salud)",
+    "30300000000": "Sancor Salud",
+    "30678138300": "Swiss Medical",
+    "30536481747": "Galeno",
+    "30685871239": "OMINT",
+    "18084418": "Palero",
+    "22392224": "Jalif"
+}
+
+def get_official_name(cuit: str, default_name: str) -> str:
+    if not cuit:
+        return default_name
+    clean = str(cuit).strip().replace("-", "")
+    return OFFICIAL_NAMES_MAP.get(clean, default_name)
+
 app = FastAPI(title="AMEM Auditoría API", version="2.0")
 
 # Habilitar CORS para desarrollo local
@@ -633,7 +664,8 @@ def get_clientes(query: Optional[str] = None):
     clientes_list = []
     for c in clientes_raw:
         cuit = decrypt_data(c['cuit_encrypted'])
-        nombre = decrypt_data(c['nombre_razon_social_encrypted'])
+        nombre_original = decrypt_data(c['nombre_razon_social_encrypted'])
+        nombre = get_official_name(cuit, nombre_original)
         c_hash = c['cuit_hash']
         
         if query and not (query.lower() in cuit or query.lower() in nombre.lower()):
