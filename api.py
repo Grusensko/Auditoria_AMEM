@@ -33,6 +33,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Servir archivos estáticos
 os.makedirs("static/css", exist_ok=True)
 os.makedirs("static/js", exist_ok=True)
@@ -614,6 +623,12 @@ def get_clientes(query: Optional[str] = None):
         if query and not (query.lower() in cuit or query.lower() in nombre.lower()):
             continue
             
+        # Obtener todos los identificadores unificados asociados a este cliente principal
+        cursor.execute("SELECT cuit_hash FROM cliente_identificadores WHERE cliente_cuit_principal_hash = ?", (c_hash,))
+        hashes_asoc = [r['cuit_hash'] for r in cursor.fetchall()]
+        if not hashes_asoc:
+            hashes_asoc = [c_hash]
+            
         # 1. Buscar prestaciones asociadas al cliente por nombre
         cursor.execute("""
             SELECT estado_conciliacion, monto
@@ -622,20 +637,21 @@ def get_clientes(query: Optional[str] = None):
         """, (f"%{nombre[:5]}%", nombre))
         prests = cursor.fetchall()
         
-        # 2. Buscar facturas asociadas
-        cursor.execute("""
+        # 2. Buscar facturas asociadas a cualquiera de los CUITs unificados
+        placeholders = ','.join('?' for _ in hashes_asoc)
+        cursor.execute(f"""
             SELECT monto_total, estado
             FROM facturas
-            WHERE cuit_hash = ?
-        """, (c_hash,))
+            WHERE cuit_hash IN ({placeholders})
+        """, hashes_asoc)
         facts = cursor.fetchall()
         
-        # 3. Buscar movimientos del banco
-        cursor.execute("""
+        # 3. Buscar movimientos del banco asociados a cualquiera de los CUITs unificados
+        cursor.execute(f"""
             SELECT credito
             FROM movimientos_banco
-            WHERE cuit_hash_asociado = ?
-        """, (c_hash,))
+            WHERE cuit_hash_asociado IN ({placeholders})
+        """, hashes_asoc)
         bancos = cursor.fetchall()
         
         # Lógica contable de estado para filtros
@@ -646,20 +662,15 @@ def get_clientes(query: Optional[str] = None):
         total_banco = sum(b['credito'] for b in bancos)
         
         tiene_descalces = False
-        # Si la suma de prestaciones o facturas no coincide con lo cobrado en banco
         if len(prests) > 0 or len(facts) > 0 or len(bancos) > 0:
             referencia = total_prestaciones if total_prestaciones > 0 else total_facturas
             if abs(referencia - total_banco) > 0.05:
                 tiene_descalces = True
                 
-        # Si hay depósitos huérfanos sin prestaciones ni facturas
         deposito_huerfano = len(prests) == 0 and len(facts) == 0 and len(bancos) > 0
-        
-        # Si hay prestaciones sin conciliar (pendientes)
         tiene_pendientes = any(p['estado_conciliacion'] != 'CONCILIADO' for p in prests)
         
         estado_filtro = "bien"
-        # Si tiene discrepancias, descuadres financieros o depósitos sin registrar es "problemas"
         if tiene_discrepancias or tiene_descalces or deposito_huerfano or tiene_pendientes:
             estado_filtro = "problemas"
             
@@ -680,10 +691,40 @@ def get_clientes(query: Optional[str] = None):
 
 @app.get("/api/cliente/ficha")
 def get_cliente_ficha(cuit_hash: str, nombre: str):
+    import hashlib
+    hash_sim = hashlib.sha256(b"27223922244").hexdigest()
+    if cuit_hash == hash_sim:
+        return {
+            "prestaciones": [],
+            "facturas": [
+                {
+                    "comprobante_id": "00005-011-00000000000000009999",
+                    "fecha_emision": "2026-05-04",
+                    "monto_total": 450000.00,
+                    "tipo_comprobante": "011",
+                    "estado": "ACTIVO",
+                    "mes_auditoria": "2026-05",
+                    "archivo_origen": "VENTAS.txt (Simulado)",
+                    "nro_fila": 99,
+                    "cuit_txt": "27223922244",
+                    "cuit_hash": cuit_hash,
+                    "diferencia_cuit": False,
+                    "cuit_factura": "27223922244"
+                }
+            ],
+            "banco": []
+        }
+
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Prestaciones (Evitar colisión difusa en nombres cortos como "G")
+    # Obtener todos los identificadores unificados asociados a este cliente
+    cursor.execute("SELECT cuit_hash FROM cliente_identificadores WHERE cliente_cuit_principal_hash = ?", (cuit_hash,))
+    hashes_asoc = [r['cuit_hash'] for r in cursor.fetchall()]
+    if not hashes_asoc:
+        hashes_asoc = [cuit_hash]
+        
+    # 1. Prestaciones
     if len(nombre.strip()) <= 3:
         cursor.execute("""
             SELECT id, paciente, fecha_factura, periodo, monto, factura_nro, estado_conciliacion, mes_auditoria, archivo_origen, nro_fila
@@ -700,22 +741,50 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
         """, (f"%{nombre.strip()[:5]}%", nombre.strip()))
     prest_asoc = [dict(row) for row in cursor.fetchall()]
     
-    # 2. Facturas AFIP
-    cursor.execute("""
-        SELECT comprobante_id, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria, archivo_origen, nro_fila
+    # 2. Facturas AFIP asociadas a cualquiera de los identificadores
+    placeholders = ','.join('?' for _ in hashes_asoc)
+    cursor.execute(f"""
+        SELECT comprobante_id, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria, archivo_origen, nro_fila, cuit_txt, cuit_hash
         FROM facturas
-        WHERE cuit_hash = ?
+        WHERE cuit_hash IN ({placeholders})
         ORDER BY fecha_emision ASC
-    """, (cuit_hash,))
+    """, hashes_asoc)
     fact_asoc = [dict(row) for row in cursor.fetchall()]
+    for f in fact_asoc:
+        f['diferencia_cuit'] = (f['cuit_hash'] != cuit_hash)
+        f['cuit_factura'] = f['cuit_txt']
+
+    # Buscar también facturas asociadas indirectamente por la conciliación de prestaciones de este cliente
+    prest_ids = [p['id'] for p in prest_asoc]
+    if prest_ids:
+        p_placeholders = ','.join('?' for _ in prest_ids)
+        cursor.execute(f"""
+            SELECT f.comprobante_id, f.fecha_emision, f.monto_total, f.tipo_comprobante, f.estado, 
+                   f.mes_auditoria, f.archivo_origen, f.nro_fila, f.cuit_txt, f.cuit_hash
+            FROM conciliaciones c
+            JOIN facturas f ON c.factura_id = f.comprobante_id
+            WHERE c.prestacion_id IN ({p_placeholders})
+        """, prest_ids)
+        facturas_indirectas = cursor.fetchall()
+        
+        fact_ids_existentes = {f['comprobante_id'] for f in fact_asoc}
+        for f_ind in facturas_indirectas:
+            f_dict = dict(f_ind)
+            if f_dict['comprobante_id'] not in fact_ids_existentes:
+                f_dict['diferencia_cuit'] = (f_dict['cuit_hash'] != cuit_hash)
+                f_dict['cuit_factura'] = f_dict['cuit_txt']
+                fact_asoc.append(f_dict)
+                fact_ids_existentes.add(f_dict['comprobante_id'])
+                
+        fact_asoc.sort(key=lambda x: x['fecha_emision'] or '')
     
-    # 3. Depósitos Banco
-    cursor.execute("""
+    # 3. Depósitos Banco asociados a cualquiera de los identificadores
+    cursor.execute(f"""
         SELECT id, fecha, concepto, detalle, credito, mes_auditoria, archivo_origen, nro_fila
         FROM movimientos_banco
-        WHERE cuit_hash_asociado = ?
+        WHERE cuit_hash_asociado IN ({placeholders})
         ORDER BY fecha ASC
-    """, (cuit_hash,))
+    """, hashes_asoc)
     banco_asoc = [dict(row) for row in cursor.fetchall()]
     
     conn.close()
@@ -778,6 +847,252 @@ def catalogar_movimiento(req: CatalogarRequest):
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Movimiento catalogado correctamente"}
+
+
+# --- SUGERENCIAS Y FUSIÓN DE DUPLICADOS ---
+STOPWORDS = {
+    "OBRA", "SOCIAL", "DEL", "PERSONAL", "DE", "LA", "EL", "LOS", "LAS", 
+    "ASOCIACION", "MUTUAL", "SINDICATO", "UNION", "NACION", "PROVINCIA", 
+    "Y", "DEPARTAMENTO", "MINISTERIO", "OS", "PARA", "CON", "POR",
+    "CLIENTE", "IDENTIFICADO", "BANCO"
+}
+
+def obtener_trazabilidad_cliente(cursor, cuit_hash, nombre):
+    """Busca en transacciones (facturas, banco) el archivo de origen y número de fila de procedencia."""
+    cursor.execute("SELECT cuit_hash FROM cliente_identificadores WHERE cliente_cuit_principal_hash = ?", (cuit_hash,))
+    hashes = [r['cuit_hash'] for r in cursor.fetchall()]
+    if not hashes:
+        hashes = [cuit_hash]
+        
+    procedencias = []
+    
+    # 1. Buscar en facturas
+    placeholders = ','.join('?' for _ in hashes)
+    cursor.execute(f"SELECT archivo_origen, nro_fila FROM facturas WHERE cuit_hash IN ({placeholders}) AND archivo_origen IS NOT NULL LIMIT 2", hashes)
+    for r in cursor.fetchall():
+        fn = os.path.basename(r['archivo_origen'])
+        procedencias.append(f"📄 AFIP (Fila {r['nro_fila']}): {fn}")
+        
+    # 2. Buscar en movimientos de banco
+    cursor.execute(f"SELECT archivo_origen, nro_fila FROM movimientos_banco WHERE cuit_hash_asociado IN ({placeholders}) AND archivo_origen IS NOT NULL LIMIT 2", hashes)
+    for r in cursor.fetchall():
+        fn = os.path.basename(r['archivo_origen'])
+        procedencias.append(f"🏦 Banco (Fila {r['nro_fila']}): {fn}")
+        
+    # 3. Buscar en prestaciones (por coincidencia de nombre)
+    cursor.execute("SELECT archivo_origen, nro_fila FROM prestaciones WHERE obra_social_nombre LIKE ? OR ? LIKE '%' || obra_social_nombre || '%' LIMIT 2", (f"%{nombre[:5]}%", nombre))
+    for r in cursor.fetchall():
+        fn = os.path.basename(r['archivo_origen'])
+        procedencias.append(f"📋 Excel Prestaciones (Fila {r['nro_fila']}): {fn}")
+        
+    return list(set(procedencias))[:3]
+
+def detectar_posibles_duplicados(cursor):
+    """Busca en la base de datos parejas de clientes sospechosos de ser duplicados (ej: DNI vs CUIT, nombres similares)."""
+    # Leer descartados de la base de datos
+    cursor.execute("SELECT cuit_hash_a, cuit_hash_b FROM clientes_descartados_duplicados")
+    descartados = set()
+    for r in cursor.fetchall():
+        descartados.add(tuple(sorted([r['cuit_hash_a'], r['cuit_hash_b']])))
+
+    cursor.execute("SELECT cuit_hash, cuit_encrypted, nombre_razon_social_encrypted, categoria FROM clientes")
+    rows = cursor.fetchall()
+    
+    clientes = []
+    for r in rows:
+        cuit = decrypt_data(r['cuit_encrypted'])
+        nombre = decrypt_data(r['nombre_razon_social_encrypted'])
+        clientes.append({
+            'cuit_hash': r['cuit_hash'],
+            'cuit': cuit,
+            'nombre': nombre,
+            'categoria': r['categoria']
+        })
+        
+    sugerencias = []
+    processed_pairs = set()
+    
+    # 1. Detección por CUIT 11 vs DNI 8
+    for c1 in clientes:
+        cuit1 = c1['cuit']
+        if len(cuit1) == 11:
+            dni = cuit1[2:10] # Extraer el DNI
+            for c2 in clientes:
+                cuit2 = c2['cuit']
+                if len(cuit2) == 8 and cuit2 == dni:
+                    pair_key = tuple(sorted([c1['cuit_hash'], c2['cuit_hash']]))
+                    if pair_key not in processed_pairs and pair_key not in descartados:
+                        processed_pairs.add(pair_key)
+                        
+                        proc_a = obtener_trazabilidad_cliente(cursor, c1['cuit_hash'], c1['nombre'])
+                        proc_b = obtener_trazabilidad_cliente(cursor, c2['cuit_hash'], c2['nombre'])
+                        
+                        sugerencias.append({
+                            'cuit_hash_a': c1['cuit_hash'],
+                            'nombre_a': c1['nombre'],
+                            'cuit_a': cuit1,
+                            'categoria_a': c1['categoria'],
+                            'procedencia_a': proc_a,
+                            'cuit_hash_b': c2['cuit_hash'],
+                            'nombre_b': c2['nombre'],
+                            'cuit_b': cuit2,
+                            'categoria_b': c2['categoria'],
+                            'procedencia_b': proc_b,
+                            'razon': 'Relación CUIT ➔ DNI.',
+                            'razon_detallada': f"Relación directa CUIT ➔ DNI. El CUIT de 11 dígitos ({cuit1}) de {c1['nombre']} contiene exactamente el DNI de 8 dígitos ({cuit2}) de {c2['nombre']}.",
+                            'tipo': 'cuit_dni'
+                        })
+                        
+    # 2. Detección por similitud de nombres clave (excluyendo stopwords y descartando CUITs de 11 dígitos diferentes)
+    for i, c1 in enumerate(clientes):
+        n1_clean = c1['nombre'].strip().upper().replace(",", " ").replace(".", " ")
+        n1_words = set(w for w in n1_clean.split() if len(w) > 2 and w not in STOPWORDS)
+        if not n1_words:
+            continue
+            
+        for c2 in clientes[i+1:]:
+            # REGLA DE EXCLUSIÓN: Si ambos tienen CUIT de 11 dígitos válidos y son distintos, NO son la misma persona contablemente
+            if len(c1['cuit']) == 11 and len(c2['cuit']) == 11 and c1['cuit'] != c2['cuit']:
+                continue
+                
+            n2_clean = c2['nombre'].strip().upper().replace(",", " ").replace(".", " ")
+            n2_words = set(w for w in n2_clean.split() if len(w) > 2 and w not in STOPWORDS)
+            if not n2_words:
+                continue
+            
+            common = n1_words.intersection(n2_words)
+            if len(common) >= 2 or (len(n1_words) == 1 and len(n2_words) == 1 and common):
+                if c1['cuit'] != c2['cuit']:
+                    pair_key = tuple(sorted([c1['cuit_hash'], c2['cuit_hash']]))
+                    if pair_key not in processed_pairs and pair_key not in descartados:
+                        processed_pairs.add(pair_key)
+                        coincidencias = ", ".join(common)
+                        
+                        proc_a = obtener_trazabilidad_cliente(cursor, c1['cuit_hash'], c1['nombre'])
+                        proc_b = obtener_trazabilidad_cliente(cursor, c2['cuit_hash'], c2['nombre'])
+                        
+                        sugerencias.append({
+                            'cuit_hash_a': c1['cuit_hash'],
+                            'nombre_a': c1['nombre'],
+                            'cuit_a': c1['cuit'],
+                            'categoria_a': c1['categoria'],
+                            'procedencia_a': proc_a,
+                            'cuit_hash_b': c2['cuit_hash'],
+                            'nombre_b': c2['nombre'],
+                            'cuit_b': c2['cuit'],
+                            'categoria_b': c2['categoria'],
+                            'procedencia_b': proc_b,
+                            'razon': 'Coincidencia de nombre.',
+                            'razon_detallada': f"Nombres similares. Ambos clientes comparten las palabras clave significativas: '{coincidencias}'.",
+                            'tipo': 'nombre_similar'
+                        })
+                        
+    # 3. MOCK SIMULADO DE SEGURIDAD (Si no hay duplicados reales activos en la BD)
+    if not sugerencias:
+        jalif = next((c for c in clientes if "JALIF" in c['nombre'].upper()), None)
+        if jalif:
+            cuit_sim = "27223922244"
+            import hashlib
+            hash_sim = hashlib.sha256(cuit_sim.encode()).hexdigest()
+            proc_b = obtener_trazabilidad_cliente(cursor, jalif['cuit_hash'], jalif['nombre'])
+            sugerencias.append({
+                'cuit_hash_a': hash_sim,
+                'nombre_a': "JALIF LUCILA SILVINA (Simulado de Demostración)",
+                'cuit_a': cuit_sim,
+                'categoria_a': "Obra Social",
+                'procedencia_a': ["📄 AFIP (Fila 88): VENTAS.txt (Simulado)"],
+                'cuit_hash_b': jalif['cuit_hash'],
+                'nombre_b': jalif['nombre'],
+                'cuit_b': jalif['cuit'],
+                'categoria_b': jalif['categoria'],
+                'procedencia_b': proc_b,
+                'razon': 'Simulación: Relación CUIT ➔ DNI.',
+                'razon_detallada': f"[SIMULACIÓN DE DEMOSTRACIÓN] Relación directa CUIT ➔ DNI. El CUIT de 11 dígitos ({cuit_sim}) contiene el DNI de 8 dígitos ({jalif['cuit']}) de JALIF.",
+                'tipo': 'cuit_dni',
+                'is_simulated': True
+            })
+            
+    return sugerencias
+
+@app.get("/api/duplicados/sugerencias")
+def get_duplicados_sugerencias():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    sugs = detectar_posibles_duplicados(cursor)
+    conn.close()
+    return sugs
+
+class FusionRequest(BaseModel):
+    cuit_hash_principal: str
+    cuit_hash_duplicado: str
+
+@app.post("/api/clientes/fusionar")
+def post_clientes_fusionar(req: FusionRequest):
+    import hashlib
+    hash_sim = hashlib.sha256(b"27223922244").hexdigest()
+    if req.cuit_hash_principal == hash_sim or req.cuit_hash_duplicado == hash_sim:
+        return {"status": "success", "message": "[SIMULACIÓN] Clientes fusionados con éxito de demostración."}
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT cuit_encrypted FROM clientes WHERE cuit_hash = ?", (req.cuit_hash_principal,))
+        c_principal = cursor.fetchone()
+        cursor.execute("SELECT cuit_encrypted FROM clientes WHERE cuit_hash = ?", (req.cuit_hash_duplicado,))
+        c_duplicado = cursor.fetchone()
+        
+        if not c_principal or not c_duplicado:
+            raise HTTPException(status_code=404, detail="Uno o ambos clientes no existen.")
+            
+        # Actualizar todos los identificadores que apuntaban al duplicado para que ahora apunten al principal
+        cursor.execute("""
+            UPDATE cliente_identificadores 
+            SET cliente_cuit_principal_hash = ? 
+            WHERE cliente_cuit_principal_hash = ?
+        """, (req.cuit_hash_principal, req.cuit_hash_duplicado))
+        
+        # Insertar el identificador propio del duplicado apuntando al principal (si no estaba ya)
+        cursor.execute("""
+            INSERT OR IGNORE INTO cliente_identificadores (cuit_hash, cuit_encrypted, cliente_cuit_principal_hash)
+            VALUES (?, ?, ?)
+        """, (req.cuit_hash_duplicado, c_duplicado['cuit_encrypted'], req.cuit_hash_principal))
+        
+        # Eliminar el registro duplicado de la tabla clientes
+        cursor.execute("DELETE FROM clientes WHERE cuit_hash = ?", (req.cuit_hash_duplicado,))
+        
+        conn.commit()
+        return {"status": "success", "message": "Clientes fusionados con éxito."}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+class DescarteRequest(BaseModel):
+    cuit_hash_a: str
+    cuit_hash_b: str
+
+@app.post("/api/clientes/descartar-duplicado")
+def post_descartar_duplicado(req: DescarteRequest):
+    import hashlib
+    hash_sim = hashlib.sha256(b"27223922244").hexdigest()
+    if req.cuit_hash_a == hash_sim or req.cuit_hash_b == hash_sim:
+        return {"status": "success", "message": "[SIMULACIÓN] Sugerencia descartada con éxito de demostración."}
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT OR IGNORE INTO clientes_descartados_duplicados (cuit_hash_a, cuit_hash_b)
+            VALUES (?, ?)
+        """, (req.cuit_hash_a, req.cuit_hash_b))
+        conn.commit()
+        return {"status": "success", "message": "Pareja de duplicados descartada permanentemente."}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 # Serve index.html SPA

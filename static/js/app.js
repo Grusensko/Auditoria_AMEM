@@ -46,6 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let chartPie = null;
     let chartBar = null;
     let chartCliente = null;
+    
+    let sugerenciasDuplicados = [];
+    let sugerenciaActiva = null;
 
     // --- ELEMENTOS DEL DOM ---
     const loginScreen = document.getElementById("login-screen");
@@ -380,6 +383,105 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             });
+            
+            // Cargar sugerencias de duplicados y transacciones de control en el Header
+            try {
+                const resDup = await fetch('/api/duplicados/sugerencias');
+                sugerenciasDuplicados = await resDup.json();
+                
+                const resAlerts = await fetch('/api/alertas');
+                const alertasContables = await resAlerts.json();
+                const alertasSinCatalogar = alertasContables.filter(a => !a.categoria_auditoria);
+                
+                const headerNotifList = document.getElementById("header-notif-list");
+                const headerNotifBadge = document.getElementById("header-notif-badge");
+                const headerNotifCount = document.getElementById("header-notif-count");
+                
+                const totalNotifs = sugerenciasDuplicados.length + (alertasSinCatalogar.length > 0 ? 1 : 0);
+                
+                if (headerNotifCount) headerNotifCount.textContent = totalNotifs;
+                if (headerNotifBadge) {
+                    headerNotifBadge.style.display = totalNotifs > 0 ? "block" : "none";
+                }
+                
+                if (headerNotifList) {
+                    headerNotifList.innerHTML = "";
+                    let itemsHtml = "";
+                    
+                    // 1. Agregar duplicados detectados
+                    sugerenciasDuplicados.forEach((sug, index) => {
+                        const styleBg = sug.is_simulated ? "#eff6ff" : "#fff7ed";
+                        const styleBorder = sug.is_simulated ? "var(--color-blue)" : "var(--color-orange)";
+                        const styleColor = sug.is_simulated ? "#1d4ed8" : "#b45309";
+                        const labelSim = sug.is_simulated ? "🤖 [SIMULADO] " : "⚠️ ";
+                        
+                        itemsHtml += `
+                            <div class="notification-item" style="display: flex; flex-direction: column; padding: 10px 12px; border-radius: 8px; background: ${styleBg}; border-left: 4px solid ${styleBorder}; font-size: 11.5px; color: ${styleColor}; box-shadow: 0 1px 2px rgba(0,0,0,0.01); text-align: left;">
+                                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                    <span style="font-size: 14px; margin-top: 1px;">${sug.is_simulated ? '💡' : '⚠️'}</span>
+                                    <div>
+                                        <strong>${labelSim}Posible duplicado:</strong>
+                                        <div style="font-weight: 600; margin-top: 2px;">${sug.nombre_a}</div>
+                                        <div style="opacity: 0.8; font-size: 10.5px;">con ${sug.nombre_b}</div>
+                                        <div style="font-size: 10.5px; opacity: 0.85; margin-top: 4px; line-height: 1.25;">Motivo: ${sug.razon_detallada}</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; margin-top: 8px; gap: 6px;">
+                                    <button class="btn-primary btn-notif-unificar" data-index="${index}" style="padding: 4px 10px; font-size: 10px; font-weight: 700; background: ${sug.is_simulated ? '#2563eb' : '#ea580c'}; border: none; border-radius: 4px; cursor: pointer; color: white;">🔗 Unificar</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // 2. Agregar alertas de transacciones bancarias sospechosas sin catalogar
+                    if (alertasSinCatalogar.length > 0) {
+                        itemsHtml += `
+                            <div class="notification-item" style="display: flex; flex-direction: column; padding: 10px 12px; border-radius: 8px; background: #fef2f2; border-left: 4px solid var(--color-red); font-size: 11.5px; color: #b91c1c; box-shadow: 0 1px 2px rgba(0,0,0,0.01); text-align: left;">
+                                <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                    <span style="font-size: 14px; margin-top: 1px;">🚨</span>
+                                    <div>
+                                        <strong>Control Interno:</strong>
+                                        <div style="margin-top: 2px;">Se detectaron ${alertasSinCatalogar.length} movimientos inusuales sin catalogar.</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                                    <button class="btn-secondary btn-notif-revisar-alertas" style="padding: 4px 10px; font-size: 10px; font-weight: 700; border-color: #fca5a5; color: #b91c1c; background: #fff; border-radius: 4px; cursor: pointer;">🛡️ Catalogar</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (itemsHtml) {
+                        headerNotifList.innerHTML = itemsHtml;
+                        
+                        // Enlazar eventos click de botones en notificaciones
+                        headerNotifList.querySelectorAll(".btn-notif-unificar").forEach(btn => {
+                            btn.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                const idx = parseInt(btn.getAttribute("data-index"));
+                                sugerenciaActiva = sugerenciasDuplicados[idx];
+                                abrirModalFusion(sugerenciaActiva);
+                                // Cerrar dropdown flotante al hacer click en la acción
+                                document.getElementById("header-notif-dropdown").classList.add("hidden");
+                            });
+                        });
+                        
+                        const btnRevAlerts = headerNotifList.querySelector(".btn-notif-revisar-alertas");
+                        if (btnRevAlerts) {
+                            btnRevAlerts.addEventListener("click", (e) => {
+                                e.stopPropagation();
+                                const menuAlertas = Array.from(document.querySelectorAll(".menu-item")).find(i => i.getAttribute("data-target") === "view-alertas");
+                                if (menuAlertas) menuAlertas.click();
+                                document.getElementById("header-notif-dropdown").classList.add("hidden");
+                            });
+                        }
+                    } else {
+                        headerNotifList.innerHTML = `<div class="list-empty-state" style="padding: 15px; font-size: 11.5px; text-align: center; color: var(--text-secondary);">Sin notificaciones pendientes. Todo en orden. ✅</div>`;
+                    }
+                }
+            } catch (dupErr) {
+                console.error("Error al cargar sugerencias de duplicados:", dupErr);
+            }
         } catch (err) {
             console.error("Error al cargar KPIs del dashboard:", err);
         }
@@ -1790,6 +1892,21 @@ document.addEventListener("DOMContentLoaded", () => {
             // Mostrar CUIT real desencriptado en lugar de hash
             document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitReal}`;
             
+            // Verificar duplicidades sospechosas en la ficha
+            const fDupBanner = document.getElementById("ficha-duplicate-banner");
+            const fDupMsg = document.getElementById("ficha-duplicate-msg");
+            if (fDupBanner && fDupMsg) {
+                sugerenciaActiva = sugerenciasDuplicados.find(s => s.cuit_hash_a === cuitHash || s.cuit_hash_b === cuitHash);
+                if (sugerenciaActiva) {
+                    fDupBanner.style.display = "flex";
+                    const dupNombre = sugerenciaActiva.cuit_hash_a === cuitHash ? sugerenciaActiva.nombre_b : sugerenciaActiva.nombre_a;
+                    fDupMsg.textContent = `Este cliente comparte datos con el registro de ${dupNombre}.`;
+                } else {
+                    fDupBanner.style.display = "none";
+                    sugerenciaActiva = null;
+                }
+            }
+            
             const catBadge = document.getElementById("ficha-cliente-categoria-badge");
             let catClass = "blue";
             let tooltipText = "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
@@ -1981,10 +2098,21 @@ document.addEventListener("DOMContentLoaded", () => {
                     const item = document.createElement("div");
                     item.className = `listview-item ${borderCol}`;
                     
-                    const tooltipText = `<strong>Procedencia:</strong><br>📄 Archivo: ${f.archivo_origen || 'Desconocido'}<br>📍 Fila: ${f.nro_fila || '—'}`;
+                    // Alerta de CUIT si la factura proviene de match indirecto por prestación
+                    let cuitWarningHtml = "";
+                    let cuitTooltipPart = "";
+                    if (f.diferencia_cuit) {
+                        cuitWarningHtml = `<span class="cuit-warning-badge" style="background-color:#fff7ed; color:#c2410c; border: 1px solid #ffedd5; font-size:0.65rem; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:8px; cursor:help;" onmouseenter="showTooltip(event, 'La factura fue emitida al DNI/CUIT de 8 dígitos de esta persona o institución y se asoció mediante coincidencia difusa')" onmouseleave="hideTooltip()">⚠️ CUIT: ${f.cuit_factura}</span>`;
+                        cuitTooltipPart = `<br>⚠️ <strong>Diferencia de CUIT:</strong> Factura emitida al CUIT/DNI ${f.cuit_factura} (se asoció indirectamente a través del match de prestaciones).`;
+                    }
+                    
+                    const tooltipText = `<strong>Procedencia:</strong><br>📄 Archivo: ${f.archivo_origen || 'Desconocido'}<br>📍 Fila: ${f.nro_fila || '—'}${cuitTooltipPart}`;
                     
                     item.innerHTML = `
-                        <div class="listview-item-title" title="${f.comprobante_id}">${f.comprobante_id}</div>
+                        <div class="listview-item-title" title="${f.comprobante_id}" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                            <span>${f.comprobante_id}</span>
+                            ${cuitWarningHtml}
+                        </div>
                         <div class="listview-item-details">
                             <div class="listview-item-meta-group">
                                 <span class="listview-item-date">${f.fecha_emision}</span>
@@ -2043,6 +2171,202 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedClienteHash = null;
         loadClientes(clientSearchInp.value.trim()); // Refrescar maestro para quitar selección
     });
+
+    // --- CONTROLADOR DE FUSIÓN Y UNIFICACIÓN DE CLIENTES ---
+    const btnFichaUnificar = document.getElementById("btn-ficha-unificar-cuit");
+    const btnDashboardReview = document.getElementById("btn-dashboard-review-duplicates");
+    const btnCancelFusion = document.getElementById("btn-cancel-fusion");
+    const btnConfirmFusion = document.getElementById("btn-confirm-fusion");
+    const fusionModal = document.getElementById("fusion-modal");
+
+    // Función para abrir el modal cargando los dos clientes y sus montos
+    async function abrirModalFusion(sug) {
+        if (!sug) return;
+        
+        // Cargar nombres, CUITs y justificación del motivo
+        document.getElementById("fusion-main-name").textContent = sug.nombre_a;
+        document.getElementById("fusion-main-cuit").textContent = `CUIT: ${sug.cuit_a}`;
+        
+        document.getElementById("fusion-dup-name").textContent = sug.nombre_b;
+        document.getElementById("fusion-dup-cuit").textContent = `CUIT: ${sug.cuit_b}`;
+        
+        // Cargar motivo en el banner del modal
+        const reasonText = document.getElementById("fusion-reason-text");
+        if (reasonText) {
+            reasonText.textContent = sug.razon_detallada || sug.razon || "Similitud de identificador fiscal o coincidencia de palabras significativas.";
+        }
+        
+        // Colocar montos y procedencias inicialmente
+        document.getElementById("fusion-main-prest").textContent = "...";
+        document.getElementById("fusion-main-fact").textContent = "...";
+        document.getElementById("fusion-main-banc").textContent = "...";
+        document.getElementById("fusion-dup-prest").textContent = "...";
+        document.getElementById("fusion-dup-fact").textContent = "...";
+        document.getElementById("fusion-dup-banc").textContent = "...";
+        
+        const mainProc = document.getElementById("fusion-main-proc");
+        const dupProc = document.getElementById("fusion-dup-proc");
+        if (mainProc && dupProc) {
+            mainProc.innerHTML = sug.procedencia_a && sug.procedencia_a.length > 0
+                ? sug.procedencia_a.map(p => `<div style="padding: 2px 0;">${p}</div>`).join("")
+                : `<div style="opacity: 0.6; font-style: italic;">Sin transacciones directas asociadas</div>`;
+                
+            dupProc.innerHTML = sug.procedencia_b && sug.procedencia_b.length > 0
+                ? sug.procedencia_b.map(p => `<div style="padding: 2px 0;">${p}</div>`).join("")
+                : `<div style="opacity: 0.6; font-style: italic;">Sin transacciones directas asociadas</div>`;
+        }
+        
+        fusionModal.classList.remove("hidden");
+        
+        // Obtener montos acumulados llamando a la ficha de cada uno para comparar
+        try {
+            const resA = await fetch(`/api/cliente/ficha?cuit_hash=${sug.cuit_hash_a}&nombre=${encodeURIComponent(sug.nombre_a)}`);
+            const dataA = await resA.json();
+            const totalPrestA = dataA.prestaciones.reduce((sum, p) => sum + p.monto, 0);
+            const totalFactA = dataA.facturas.reduce((sum, f) => sum + (f.estado === "ACTIVO" ? f.monto_total : 0), 0);
+            const totalBancA = dataA.banco.reduce((sum, b) => sum + b.credito, 0);
+            
+            document.getElementById("fusion-main-prest").textContent = formatCurrency(totalPrestA);
+            document.getElementById("fusion-main-fact").textContent = formatCurrency(totalFactA);
+            document.getElementById("fusion-main-banc").textContent = formatCurrency(totalBancA);
+            
+            const resB = await fetch(`/api/cliente/ficha?cuit_hash=${sug.cuit_hash_b}&nombre=${encodeURIComponent(sug.nombre_b)}`);
+            const dataB = await resB.json();
+            const totalPrestB = dataB.prestaciones.reduce((sum, p) => sum + p.monto, 0);
+            const totalFactB = dataB.facturas.reduce((sum, f) => sum + (f.estado === "ACTIVO" ? f.monto_total : 0), 0);
+            const totalBancB = dataB.banco.reduce((sum, b) => sum + b.credito, 0);
+            
+            document.getElementById("fusion-dup-prest").textContent = formatCurrency(totalPrestB);
+            document.getElementById("fusion-dup-fact").textContent = formatCurrency(totalFactB);
+            document.getElementById("fusion-dup-banc").textContent = formatCurrency(totalBancB);
+        } catch (e) {
+            console.error("Error al cargar detalles comparativos:", e);
+        }
+    }
+
+    if (btnFichaUnificar) {
+        btnFichaUnificar.addEventListener("click", () => {
+            abrirModalFusion(sugerenciaActiva);
+        });
+    }
+
+    if (btnDashboardReview) {
+        btnDashboardReview.addEventListener("click", () => {
+            if (sugerenciasDuplicados.length > 0) {
+                abrirModalFusion(sugerenciasDuplicados[0]);
+            }
+        });
+    }
+
+    if (btnCancelFusion) {
+        btnCancelFusion.addEventListener("click", () => {
+            fusionModal.classList.add("hidden");
+        });
+    }
+
+    if (btnConfirmFusion) {
+        btnConfirmFusion.addEventListener("click", async () => {
+            const sug = sugerenciaActiva || (sugerenciasDuplicados.length > 0 ? sugerenciasDuplicados[0] : null);
+            if (!sug) return;
+            
+            btnConfirmFusion.disabled = true;
+            btnConfirmFusion.textContent = "Unificando...";
+            
+            try {
+                const res = await fetch("/api/clientes/fusionar", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        cuit_hash_principal: sug.cuit_hash_a,
+                        cuit_hash_duplicado: sug.cuit_hash_b
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.status === "success") {
+                    alert("Clientes fusionados con éxito.");
+                    fusionModal.classList.add("hidden");
+                    
+                    // Limpiar la ficha y el banner
+                    document.getElementById("cliente-ficha-container").classList.add("hidden");
+                    document.getElementById("clientes-placeholder").classList.remove("hidden");
+                    selectedClienteHash = null;
+                    
+                    // Recargar todo reactivamente
+                    await loadDashboardData();
+                    await loadClientes(clientSearchInp.value.trim());
+                } else {
+                    alert(`Error al fusionar: ${data.detail || "Error desconocido"}`);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión al fusionar clientes.");
+            } finally {
+                btnConfirmFusion.disabled = false;
+                btnConfirmFusion.textContent = "🔗 Confirmar Fusión";
+            }
+        });
+    }
+
+    // Evento para alternar el dropdown de la campana de notificaciones
+    const btnHeaderNotif = document.getElementById("btn-header-notif");
+    const headerNotifDropdown = document.getElementById("header-notif-dropdown");
+    if (btnHeaderNotif && headerNotifDropdown) {
+        btnHeaderNotif.addEventListener("click", (e) => {
+            e.stopPropagation();
+            headerNotifDropdown.classList.toggle("hidden");
+        });
+        
+        // Cerrar dropdown al hacer click en cualquier otra parte
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".header-notif-wrapper")) {
+                headerNotifDropdown.classList.add("hidden");
+            }
+        });
+    }
+
+    // Evento para descartar permanentemente un posible duplicado (No es la misma persona)
+    const btnDismissDuplicate = document.getElementById("btn-dismiss-duplicate");
+    if (btnDismissDuplicate) {
+        btnDismissDuplicate.addEventListener("click", async () => {
+            const sug = sugerenciaActiva || (sugerenciasDuplicados.length > 0 ? sugerenciasDuplicados[0] : null);
+            if (!sug) return;
+            
+            btnDismissDuplicate.disabled = true;
+            btnDismissDuplicate.textContent = "Descartando...";
+            
+            try {
+                const res = await fetch("/api/clientes/descartar-duplicado", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        cuit_hash_a: sug.cuit_hash_a,
+                        cuit_hash_b: sug.cuit_hash_b
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.status === "success") {
+                    alert("Pareja descartada de forma permanente.");
+                    fusionModal.classList.add("hidden");
+                    
+                    // Recargar todo reactivamente para quitar el elemento
+                    await loadDashboardData();
+                    if (typeof loadClientes === "function") {
+                        await loadClientes(clientSearchInp.value.trim());
+                    }
+                } else {
+                    alert(`Error al descartar: ${data.detail || "Error desconocido"}`);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión al descartar sugerencia.");
+            } finally {
+                btnDismissDuplicate.disabled = false;
+                btnDismissDuplicate.textContent = "🛡️ No es la misma persona";
+            }
+        });
+    }
 
     // --- CARGAR / IMPORTAR ARCHIVOS ---
     const importForm = document.getElementById("import-form");

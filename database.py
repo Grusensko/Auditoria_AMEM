@@ -196,9 +196,75 @@ def init_db():
         VALUES (?, ?, ?, ?)
         """, ("consulta", pwd_hash_consulta, salt_consulta, "consulta"))
         
+    # Tabla de Identificadores Múltiples de Clientes
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS cliente_identificadores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cuit_hash TEXT UNIQUE NOT NULL,
+        cuit_encrypted BLOB NOT NULL,
+        cliente_cuit_principal_hash TEXT NOT NULL,
+        FOREIGN KEY (cliente_cuit_principal_hash) REFERENCES clientes(cuit_hash) ON DELETE CASCADE
+    )
+    """)
+    
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_cliente_identificadores_cuit_hash ON cliente_identificadores(cuit_hash)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_cliente_identificadores_principal ON cliente_identificadores(cliente_cuit_principal_hash)")
+    
+    # Tabla para registrar descartes permanentes de parejas de duplicados (No es el mismo cliente)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS clientes_descartados_duplicados (
+        cuit_hash_a TEXT NOT NULL,
+        cuit_hash_b TEXT NOT NULL,
+        PRIMARY KEY (cuit_hash_a, cuit_hash_b)
+    )
+    """)
+
+    # Migración inicial de CUITs a la nueva tabla cliente_identificadores
+    cursor.execute("SELECT COUNT(*) FROM cliente_identificadores")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("SELECT cuit_hash, cuit_encrypted FROM clientes")
+        clientes_existentes = cursor.fetchall()
+        for c in clientes_existentes:
+            cursor.execute("""
+            INSERT OR IGNORE INTO cliente_identificadores (cuit_hash, cuit_encrypted, cliente_cuit_principal_hash)
+            VALUES (?, ?, ?)
+            """, (c['cuit_hash'], c['cuit_encrypted'], c['cuit_hash']))
+            
+    # Normalización retroactiva de nombres de Obras Sociales e identificadores truncados
+    CUIT_NOM_COMPLETO = {
+        '30661876715': 'OSPELSYM (Obra Social del Personal de Luz y Fuerza de Mendoza)',
+        '30623978164': 'OSEP (Obra Social de Empleados Públicos de Mendoza)',
+        '30546741253': 'OSDE (Organización de Servicios Directos Empresarios)',
+        '30683032227': 'Unión Personal (Obra Social de la Unión del Personal Civil de la Nación)',
+        '30713045000': 'Prevención Salud (Sancor Seguros)',
+        '30657325372': 'Obra Social del Personal de Agua y Energía',
+        '30679232106': 'OSECAC (Obra Social de los Empleados de Comercio y Actividades Afines)',
+        '33531576859': 'OSPE (Obra Social de Petroleros)',
+        '30522763922': 'PAMI (Instituto Nacional de Servicios Sociales para Jubilados y Pensionados)',
+        '30714906948': 'IOSFA (Instituto de Obra Social de las Fuerzas Armadas y de Seguridad)',
+        '30533836808': 'CIMESA (Obra Social de Profesionales de la Salud)',
+        '30516748385': 'TV Salud (Obra Social del Personal de Televisión)',
+        '30547339416': 'OSPRERA (Obra Social del Personal Rural y Estibadores de la República Argentina)',
+        '30677896090': 'OSPAV (Obra Social del Personal de la Actividad Vitivinícola)',
+        '30661507698': 'OPSA (Obra Social de la Actividad de Seguros)',
+        '30715815709': 'Incluir Salud (Programa Federal)',
+        '30662758120': 'OSDOP (Obra Social de Docentes Particulares)',
+        '30500067332': 'SADAIC (Sociedad Argentina de Autores y Compositores)',
+        '23271160364': 'MARIA VICTORIA BOERIS',
+        '23065497034': 'MARIA LUISA GONZA'
+    }
+    
+    cursor.execute("SELECT cuit_hash, cuit_encrypted FROM clientes")
+    for row in cursor.fetchall():
+        cuit = decrypt_data(row['cuit_encrypted'])
+        if cuit in CUIT_NOM_COMPLETO:
+            nombre_limpio = CUIT_NOM_COMPLETO[cuit]
+            nombre_enc = encrypt_data(nombre_limpio)
+            cursor.execute("UPDATE clientes SET nombre_razon_social_encrypted = ? WHERE cuit_hash = ?", (nombre_enc, row['cuit_hash']))
+            
     conn.commit()
     conn.close()
-    print("Base de datos inicializada correctamente.")
+    print("Base de datos inicializada correctamente y clientes normalizados.")
 
 if __name__ == "__main__":
     init_db()

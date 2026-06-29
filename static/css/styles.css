@@ -2071,3 +2071,37 @@ button {
     pointer-events: none;
 }
 
+/* ==========================================
+   ESTILOS DE FUSIÓN Y SUGERENCIAS
+   ========================================== */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.alert-banner.warning {
+    border-left: 5px solid var(--color-orange);
+    background-color: #fff7ed;
+    color: #b45309;
+}
+
+.fusion-comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.fusion-panel {
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.fusion-panel h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+

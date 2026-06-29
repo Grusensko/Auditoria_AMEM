@@ -103,7 +103,26 @@
                     </div>
                 </div>
                 
-                <div class="header-right-group">
+                <div class="header-right-group" style="display: flex; align-items: center; gap: 15px; position: relative;">
+                    <!-- Campana de Notificaciones Flotante -->
+                    <div class="header-notif-wrapper" style="position: relative; display: inline-block;">
+                        <button id="btn-header-notif" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 6px; position: relative; display: flex; align-items: center; justify-content: center; border-radius: 50%; width: 38px; height: 38px; transition: background 0.2s;">
+                            🔔
+                            <span id="header-notif-badge" style="display: none; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; background-color: var(--color-red); border-radius: 50%; border: 1.5px solid #fff;"></span>
+                        </button>
+                        
+                        <!-- Dropdown Flotante -->
+                        <div id="header-notif-dropdown" class="hidden" style="position: absolute; top: 48px; right: 0; width: 345px; background: #ffffff; border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05); z-index: 1000; overflow: hidden; max-height: 400px; display: flex; flex-direction: column;">
+                            <div style="padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.05); font-weight: 700; font-size: 13.5px; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center; background-color: #fafafa;">
+                                <span>🔔 Tareas de Control y Alertas</span>
+                                <span id="header-notif-count" style="font-size: 11px; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 10px; font-weight: 600;">0</span>
+                            </div>
+                            <div id="header-notif-list" style="overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; max-height: 330px;">
+                                <div class="list-empty-state" style="padding: 15px; font-size: 11.5px; text-align: center; color: var(--text-secondary);">Sin notificaciones pendientes. Todo en orden. ✅</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="badge-status">
                         <span class="badge-dot green"></span>
                         <span class="badge-text">Auditoría Conectada</span>
@@ -122,6 +141,9 @@
                         </select>
                     </div>
                 </div>
+                
+
+
                 <div class="kpi-grid">
                     <div class="kpi-card border-blue">
                         <span class="kpi-title">Total Ingresado (Banco)</span>
@@ -280,6 +302,18 @@
                                     </div>
                                 </div>
                                 <button class="btn-secondary" id="btn-cerrar-ficha" style="padding: 8px 14px; font-size: 12px; font-weight: 600;">❌ Cerrar Ficha</button>
+                            </div>
+                            
+                            <!-- ALERTA DE DUPLICADO EN FICHA -->
+                            <div id="ficha-duplicate-banner" class="alert-banner warning" style="display: none; margin-bottom: 20px; align-items: center; justify-content: space-between; padding: 12px 20px; border-radius: 8px; border-left: 5px solid var(--color-orange); background-color: #fff7ed; color: #b45309; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 18px;">⚠️</span>
+                                    <div>
+                                        <strong style="font-size: 13px;">Posible registro duplicado detectado:</strong>
+                                        <p style="margin: 0; font-size: 12px; opacity: 0.85;" id="ficha-duplicate-msg">Este cliente comparte datos con otro registro del sistema.</p>
+                                    </div>
+                                </div>
+                                <button class="btn-primary" id="btn-ficha-unificar-cuit" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background-color: #ea580c; border-color: #ea580c;">🔗 Unificar Clientes</button>
                             </div>
                             
                             <!-- TARJETA DEL GRÁFICO DE CONCILIACIÓN Y RETRASO -->
@@ -471,7 +505,70 @@
         </div>
     </div>
 
+    <!-- MODAL DE COMPARACIÓN Y FUSIÓN DE CLIENTES -->
+    <div id="fusion-modal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width: 680px; width: 90%;">
+            <h3>🔗 Unificar y Fusionar Clientes</h3>
+            <p style="font-size: 13px; opacity: 0.8; margin-bottom: 20px;">
+                Se unificarán las identidades fiscales de ambos clientes. El cliente duplicado se fusionará, y todos sus CUITs, facturas y cobros asociados se unificarán bajo la ficha del cliente principal de forma definitiva.
+            </p>
+            
+            <!-- ALERTA DE MOTIVO / CAUSA DE SUGERENCIA -->
+            <div id="fusion-reason-alert" class="alert-banner warning" style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 8px; border-left: 5px solid var(--color-orange); background-color: #fff7ed; color: #b45309; font-size: 13px;">
+                <span>⚠️</span>
+                <div>
+                    <strong>Motivo de Sugerencia:</strong>
+                    <span id="fusion-reason-text" style="display: block; font-size: 12px; margin-top: 2px; opacity: 0.95;">Cargando...</span>
+                </div>
+            </div>
+
+            <div class="fusion-comparison-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <!-- Panel del Cliente Principal (Izquierda) -->
+                <div class="fusion-panel" style="padding: 15px; border-radius: 8px; border: 2px solid var(--color-green); background-color: #f0fdf4;">
+                    <div style="font-size: 10px; font-weight: 700; color: var(--color-green); text-transform: uppercase; margin-bottom: 5px;">✅ CLIENTE PRINCIPAL (Ficha Destino)</div>
+                    <h4 id="fusion-main-name" style="margin: 0 0 5px 0; font-size: 16px;">PALERO MAR</h4>
+                    <div id="fusion-main-cuit" style="font-size: 12px; opacity: 0.8; font-weight: 600; margin-bottom: 15px;">CUIT: 20180844180</div>
+                    
+                    <div style="display: grid; gap: 6px; font-size: 12px;">
+                        <div style="display: flex; justify-content: space-between;"><span>Prestaciones:</span><strong id="fusion-main-prest">$0.00</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Facturas:</span><strong id="fusion-main-fact">$0.00</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Cobros Banco:</span><strong id="fusion-main-banc">$0.00</strong></div>
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.08); font-size: 11px; opacity: 0.85;">
+                        <strong>Procedencia detectada:</strong>
+                        <div id="fusion-main-proc" style="margin-top: 4px; display: flex; flex-direction: column; gap: 2px; line-height: 1.3;">Cargando...</div>
+                    </div>
+                </div>
+                
+                <!-- Panel del Cliente Duplicado (Derecha) -->
+                <div class="fusion-panel" style="padding: 15px; border-radius: 8px; border: 2px solid var(--color-red); background-color: #fef2f2;">
+                    <div style="font-size: 10px; font-weight: 700; color: var(--color-red); text-transform: uppercase; margin-bottom: 5px;">❌ CLIENTE DUPLICADO (Se Fusionará)</div>
+                    <h4 id="fusion-dup-name" style="margin: 0 0 5px 0; font-size: 16px;">PALERO MARCOS GABRIEL</h4>
+                    <div id="fusion-dup-cuit" style="font-size: 12px; opacity: 0.8; font-weight: 600; margin-bottom: 15px;">CUIT: 18084418</div>
+                    
+                    <div style="display: grid; gap: 6px; font-size: 12px;">
+                        <div style="display: flex; justify-content: space-between;"><span>Prestaciones:</span><strong id="fusion-dup-prest">$0.00</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Facturas:</span><strong id="fusion-dup-fact">$0.00</strong></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Cobros Banco:</span><strong id="fusion-dup-banc">$0.00</strong></div>
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.08); font-size: 11px; opacity: 0.85;">
+                        <strong>Procedencia detectada:</strong>
+                        <div id="fusion-dup-proc" style="margin-top: 4px; display: flex; flex-direction: column; gap: 2px; line-height: 1.3;">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; gap: 10px;">
+                    <button id="btn-confirm-fusion" class="btn-primary" style="background-color: #ea580c; border-color: #ea580c;">🔗 Confirmar Fusión</button>
+                    <button id="btn-dismiss-duplicate" class="btn-secondary" style="background-color: var(--color-red-light); color: var(--color-red); border-color: rgba(239,68,68,0.15);">🛡️ No es la misma persona</button>
+                </div>
+                <button id="btn-cancel-fusion" class="btn-secondary">Confirmo luego</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts de Lógica y UI -->
-    <script src="/static/js/app.js?v=2.5"></script>
+    <script src="/static/js/app.js?v=2.6"></script>
 </body>
 </html>
