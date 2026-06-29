@@ -69,6 +69,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const appSidebar = document.getElementById("app-sidebar");
     const sidebarOverlay = document.getElementById("sidebar-overlay");
     
+    // Grid.js Instancias globales
+    let gridPrestacionesInstance = null;
+    let gridFacturasInstance = null;
+    let gridBancoInstance = null;
+    
+    let rawPrestacionesData = [];
+    let rawFacturasData = [];
+    let rawBancoData = [];
+
     // Inicializar autenticación desde SessionStorage si existe
     const cachedUser = sessionStorage.getItem("amem_user");
     if (cachedUser) {
@@ -169,6 +178,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (reportElem) {
                         reportElem.textContent = formatPeriod(currentPeriod);
                     }
+                } else if (target === "view-data-prestaciones") {
+                    loadDataLakePrestaciones();
+                } else if (target === "view-data-facturas") {
+                    loadDataLakeFacturas();
+                } else if (target === "view-data-banco") {
+                    loadDataLakeBanco();
                 }
 
                 // Cerrar sidebar en móviles al navegar
@@ -747,7 +762,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const diffTime = date2.getTime() - date1.getTime();
         return Math.round(diffTime / (1000 * 60 * 60 * 24));
     }
-
     function formatDateReadable(date) {
         return date.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
     }
@@ -756,6 +770,147 @@ document.addEventListener("DOMContentLoaded", () => {
         const d = String(date.getDate()).padStart(2, '0');
         const m = String(date.getMonth() + 1).padStart(2, '0');
         return `${d}/${m}`;
+    }
+
+    function formatMontoInput(input) {
+        let val = input.value.replace(/[^0-9,.-]/g, '');
+        input.value = val;
+    }
+    
+    // =========================================================================
+    // DATA LAKE VIEWS (Grid.js)
+    // =========================================================================
+    
+    function populateDatalakeFilter(selectId, dataArray, dataField) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        
+        // Conservar la opción "ALL" (el primer option)
+        const allOption = select.options[0];
+        select.innerHTML = "";
+        select.appendChild(allOption);
+        
+        const uniqueValues = [...new Set(dataArray.map(item => item[dataField]).filter(v => v))].sort().reverse();
+        uniqueValues.forEach(val => {
+            const opt = document.createElement("option");
+            opt.value = val;
+            opt.textContent = formatPeriod(val) || val;
+            select.appendChild(opt);
+        });
+    }
+
+    async function loadDataLakePrestaciones() {
+        if (rawPrestacionesData.length === 0) {
+            try {
+                const res = await fetch("/api/data/prestaciones");
+                rawPrestacionesData = await res.json();
+                populateDatalakeFilter("filter-datalake-prestaciones-mes", rawPrestacionesData, "mes_auditoria");
+                renderGridPrestaciones(rawPrestacionesData);
+            } catch (err) {
+                console.error("Error cargando Prestaciones Data Lake", err);
+            }
+        }
+    }
+    
+    function renderGridPrestaciones(data) {
+        const container = document.getElementById("grid-prestaciones");
+        gridPrestacionesInstance = new gridjs.Grid({
+            columns: ["ID", "Obra Social", "Paciente", "Fecha Fact.", "Periodo", "Monto", "Fact. Nro", "Estado", "Mes Aud."],
+            data: data.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]),
+            search: true,
+            sort: true,
+            fixedHeader: true,
+            height: '100%',
+            language: { search: { placeholder: "🔍 Buscar..." }, noRecordsFound: "No se encontraron registros" }
+        }).render(container);
+        
+        // Setup Filtro
+        document.getElementById("filter-datalake-prestaciones-mes").addEventListener("change", (e) => {
+            const val = e.target.value;
+            const filtered = val === "ALL" ? rawPrestacionesData : rawPrestacionesData.filter(i => i.mes_auditoria === val);
+            gridPrestacionesInstance.updateConfig({ data: filtered.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]) }).forceRender();
+        });
+    }
+
+    async function loadDataLakeFacturas() {
+        if (rawFacturasData.length === 0) {
+            try {
+                const res = await fetch("/api/data/facturas");
+                rawFacturasData = await res.json();
+                populateDatalakeFilter("filter-datalake-facturas-mes", rawFacturasData, "mes_auditoria");
+                renderGridFacturas(rawFacturasData);
+            } catch (err) {
+                console.error("Error cargando Facturas Data Lake", err);
+            }
+        }
+    }
+    
+    function renderGridFacturas(data) {
+        const container = document.getElementById("grid-facturas");
+        gridFacturasInstance = new gridjs.Grid({
+            columns: ["Comprobante ID", "CUIT Rel.", "Fecha Emisión", "Monto Total", "Tipo Comp.", "Estado", "Mes Aud."],
+            data: data.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]),
+            search: true,
+            sort: true,
+            fixedHeader: true,
+            height: '100%',
+            language: { search: { placeholder: "🔍 Buscar..." }, noRecordsFound: "No se encontraron registros" }
+        }).render(container);
+        
+        document.getElementById("filter-datalake-facturas-mes").addEventListener("change", (e) => {
+            const val = e.target.value;
+            const filtered = val === "ALL" ? rawFacturasData : rawFacturasData.filter(i => i.mes_auditoria === val);
+            gridFacturasInstance.updateConfig({ data: filtered.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]) }).forceRender();
+        });
+    }
+
+    async function loadDataLakeBanco() {
+        if (rawBancoData.length === 0) {
+            try {
+                const res = await fetch("/api/data/banco");
+                rawBancoData = await res.json();
+                populateDatalakeFilter("filter-datalake-banco-mes", rawBancoData, "mes_auditoria");
+                renderGridBanco(rawBancoData);
+            } catch (err) {
+                console.error("Error cargando Banco Data Lake", err);
+            }
+        }
+    }
+    
+    function renderGridBanco(data) {
+        const container = document.getElementById("grid-banco");
+        gridBancoInstance = new gridjs.Grid({
+            columns: ["ID", "Fecha", "Concepto", "Detalle", "Monto Neto", "Saldo", "Mes Aud."],
+            data: data.map(i => {
+                const monto = i.credito > 0 ? i.credito : (i.debito > 0 ? -i.debito : 0);
+                return [i.id, i.fecha, i.concepto, i.detalle, formatCurrency(monto), formatCurrency(i.saldo), i.mes_auditoria];
+            }),
+            search: true,
+            sort: true,
+            fixedHeader: true,
+            height: '100%',
+            language: { search: { placeholder: "🔍 Buscar..." }, noRecordsFound: "No se encontraron registros" }
+        }).render(container);
+        
+        const filterBancoData = () => {
+            const tipo = document.getElementById("filter-datalake-banco-tipo").value;
+            const mes = document.getElementById("filter-datalake-banco-mes").value;
+            
+            let filtered = rawBancoData;
+            if (mes !== "ALL") filtered = filtered.filter(i => i.mes_auditoria === mes);
+            if (tipo === "INGRESOS") filtered = filtered.filter(i => i.credito > 0);
+            if (tipo === "EGRESOS") filtered = filtered.filter(i => i.debito > 0);
+            
+            gridBancoInstance.updateConfig({ 
+                data: filtered.map(i => {
+                    const monto = i.credito > 0 ? i.credito : (i.debito > 0 ? -i.debito : 0);
+                    return [i.id, i.fecha, i.concepto, i.detalle, formatCurrency(monto), formatCurrency(i.saldo), i.mes_auditoria];
+                })
+            }).forceRender();
+        };
+        
+        document.getElementById("filter-datalake-banco-mes").addEventListener("change", filterBancoData);
+        document.getElementById("filter-datalake-banco-tipo").addEventListener("change", filterBancoData);
     }
 
     function generateTimelineHTML(prestDateStr, afipDateStr, bancoDateStr) {

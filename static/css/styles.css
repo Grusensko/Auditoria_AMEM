@@ -1897,6 +1897,77 @@ button {
 .listview-item.border-danger { border-left: 4px solid var(--color-red); }
 .listview-item.border-info { border-left: 4px solid var(--color-blue); }
 
+/* ========================================================================= */
+/* DATALAKE GRID.JS STYLES */
+/* ========================================================================= */
+
+#view-data-prestaciones.active,
+#view-data-facturas.active,
+#view-data-banco.active {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 15px;
+    overflow: hidden;
+}
+
+#view-data-prestaciones .view-card,
+#view-data-facturas .view-card,
+#view-data-banco .view-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Importantísimo para el scroll anidado en flex/grid */
+    margin: 0;
+}
+
+.datalake-grid {
+    flex: 1;
+    min-height: 0;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+.gridjs-wrapper {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    flex: 1;
+    min-height: 0; /* Permite el scroll interno en tbody que gridjs inyecta con fixedHeader */
+}
+
+.gridjs-td, .gridjs-th {
+    padding: 10px 15px !important;
+    font-size: 13px;
+}
+
+.gridjs-th {
+    background-color: var(--color-bg-light) !important;
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.gridjs-td {
+    color: var(--text-secondary);
+}
+
+/* Fix para inputs de búsqueda y selectores en header del Datalake */
+.filter-select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: #fff;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+}
+.filter-select:focus {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
 /* ==========================================
    SECCIÓN ALERTAS Y CONTROL INTERNO
    ========================================== */

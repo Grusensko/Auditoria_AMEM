@@ -199,7 +199,7 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
         col_clean = str(col).upper().strip()
         if 'TIPO' in col_clean and 'OBRA' not in col_clean:
             col_mapping['TIPO'] = col
-        elif any(term in col_clean for term in ['FACT', 'NRO', 'NUM', 'N°', 'Nº']) or col_clean == 'N':
+        elif 'FACTURA' in col_clean or ('FACT' in col_clean and any(t in col_clean for t in ['NRO', 'NUM', 'N°', 'Nº'])):
             col_mapping['FACTURA Nº'] = col
         elif 'FECHA' in col_clean and 'PAGO' not in col_clean:
             col_mapping['FECHA'] = col
@@ -256,8 +256,17 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
         
         # Limpieza de período contable
         periodo_raw = str(row.get('PERIODO')).strip() if 'PERIODO' in df.columns and pd.notna(row.get('PERIODO')) else ""
-        periodo = periodo_raw
-        if not periodo_raw or periodo_raw.lower() in ['nan', 'none']:
+        
+        # Validar si el periodo es razonable (un mes o combinación de meses)
+        meses_validos = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
+        es_mes_valido = False
+        for m in meses_validos:
+            if m in periodo_raw.upper():
+                es_mes_valido = True
+                break
+                
+        periodo = periodo_raw if es_mes_valido else ""
+        if not periodo or periodo_raw.lower() in ['nan', 'none']:
             # Deducir del mes de la fecha de prestación
             deduced = ""
             if fecha_prestacion:
