@@ -778,9 +778,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     // =========================================================================
-    // DATA LAKE VIEWS (Grid.js)
+    // REGISTROS IMPORTADOS VIEWS (Grid.js)
     // =========================================================================
     
+    // Diccionario temporal local de Obras Sociales a CUIT (para enriquecimiento crudo visual)
+    const LOCAL_OS_CUIT_MAP = {
+        "OSEP": "30623978164", "OSDE": "30512242445", "SANCOR": "30300000000",
+        "OSECAC": "30685871239", "PAMI": "30522763925", "SWISS MEDICAL": "30678138300",
+        "PREVENCION": "30685871239", "GALENO": "30536481747", "OMINT": "30685871239",
+        "OSPE": "30685871239", "OSPELSYM": "30685871239", "PALERO": "30685871239"
+    };
+
+    function enrichWithCuit(osName) {
+        if (!osName) return osName;
+        const upper = osName.toUpperCase().trim();
+        for (const [key, cuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
+            if (upper.includes(key)) {
+                return `${osName} <span style="display:inline-block; margin-left:6px; padding:2px 4px; background:#e2e8f0; border-radius:4px; font-size:9px; color:#475569;">CUIT: ${cuit}</span>`;
+            }
+        }
+        return osName;
+    }
+
+    function renderCellWithActions(content, gridId, enrichFn = null) {
+        if (!content) return "";
+        const rawContent = String(content).replace(/"/g, '&quot;');
+        const displayContent = enrichFn ? enrichFn(content) : rawContent;
+        
+        return gridjs.html(`
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; height:100%;">
+                <span>${displayContent}</span>
+                <div class="cell-actions-container">
+                    <button class="cell-action-btn copy-btn" title="Copiar" onclick="navigator.clipboard.writeText('${rawContent}'); window.showTooltip(event, '¡Copiado!')">📋</button>
+                    <button class="cell-action-btn search-btn" title="Filtrar por este valor" onclick="window.triggerGridSearch('${gridId}', '${rawContent}')">🔍</button>
+                </div>
+            </div>
+        `);
+    }
+
+    window.triggerGridSearch = function(gridId, val) {
+        const gridWrapper = document.getElementById(gridId);
+        if(!gridWrapper) return;
+        const searchInput = gridWrapper.querySelector('input[type="search"]');
+        if(searchInput) {
+            // Seteamos el valor usando native setter para que dispare eventos React/Preact (GridJS usa Preact)
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+            nativeInputValueSetter.call(searchInput, val);
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+    
+    function updateGridTotal(countId, count) {
+        const el = document.getElementById(countId);
+        if (el) el.textContent = `(${count} registros)`;
+    }
+
     function populateDatalakeFilter(selectId, dataArray, dataField) {
         const select = document.getElementById(selectId);
         if (!select) return;
@@ -813,9 +865,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function renderGridPrestaciones(data) {
+        updateGridTotal("count-prestaciones", data.length);
         const container = document.getElementById("grid-prestaciones");
+        
         gridPrestacionesInstance = new gridjs.Grid({
-            columns: ["ID", "Obra Social", "Paciente", "Fecha Fact.", "Periodo", "Monto", "Fact. Nro", "Estado", "Mes Aud."],
+            columns: [
+                { name: "ID", width: '60px' },
+                { name: "Obra Social", formatter: (c) => renderCellWithActions(c, "grid-prestaciones", enrichWithCuit) },
+                { name: "Paciente", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
+                { name: "Fecha Fact.", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
+                { name: "Periodo" },
+                { name: "Monto" },
+                { name: "Fact. Nro", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
+                { name: "Estado" },
+                { name: "Mes Aud." }
+            ],
             data: data.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]),
             search: true,
             sort: true,
@@ -828,7 +892,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("filter-datalake-prestaciones-mes").addEventListener("change", (e) => {
             const val = e.target.value;
             const filtered = val === "ALL" ? rawPrestacionesData : rawPrestacionesData.filter(i => i.mes_auditoria === val);
-            gridPrestacionesInstance.updateConfig({ data: filtered.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]) }).forceRender();
+            updateGridTotal("count-prestaciones", filtered.length);
+            gridPrestacionesInstance.updateConfig({ 
+                data: filtered.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]) 
+            }).forceRender();
         });
     }
 
@@ -846,9 +913,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function renderGridFacturas(data) {
+        updateGridTotal("count-facturas", data.length);
         const container = document.getElementById("grid-facturas");
         gridFacturasInstance = new gridjs.Grid({
-            columns: ["Comprobante ID", "CUIT Rel.", "Fecha Emisión", "Monto Total", "Tipo Comp.", "Estado", "Mes Aud."],
+            columns: [
+                { name: "Comprobante ID" },
+                { name: "CUIT Rel.", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Fecha Emisión", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Monto Total" },
+                { name: "Tipo Comp." },
+                { name: "Estado" },
+                { name: "Mes Aud." }
+            ],
             data: data.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]),
             search: true,
             sort: true,
@@ -860,7 +936,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("filter-datalake-facturas-mes").addEventListener("change", (e) => {
             const val = e.target.value;
             const filtered = val === "ALL" ? rawFacturasData : rawFacturasData.filter(i => i.mes_auditoria === val);
-            gridFacturasInstance.updateConfig({ data: filtered.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]) }).forceRender();
+            updateGridTotal("count-facturas", filtered.length);
+            gridFacturasInstance.updateConfig({ 
+                data: filtered.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]) 
+            }).forceRender();
         });
     }
 
@@ -878,9 +957,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function renderGridBanco(data) {
+        updateGridTotal("count-banco", data.length);
         const container = document.getElementById("grid-banco");
         gridBancoInstance = new gridjs.Grid({
-            columns: ["ID", "Fecha", "Concepto", "Detalle", "Monto Neto", "Saldo", "Mes Aud."],
+            columns: [
+                { name: "ID", width: '60px' },
+                { name: "Fecha", formatter: (c) => renderCellWithActions(c, "grid-banco") },
+                { name: "Concepto" },
+                { name: "Detalle", formatter: (c) => renderCellWithActions(c, "grid-banco") },
+                { name: "Monto Neto" },
+                { name: "Saldo" },
+                { name: "Mes Aud." }
+            ],
             data: data.map(i => {
                 const monto = i.credito > 0 ? i.credito : (i.debito > 0 ? -i.debito : 0);
                 return [i.id, i.fecha, i.concepto, i.detalle, formatCurrency(monto), formatCurrency(i.saldo), i.mes_auditoria];
@@ -901,6 +989,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tipo === "INGRESOS") filtered = filtered.filter(i => i.credito > 0);
             if (tipo === "EGRESOS") filtered = filtered.filter(i => i.debito > 0);
             
+            updateGridTotal("count-banco", filtered.length);
             gridBancoInstance.updateConfig({ 
                 data: filtered.map(i => {
                     const monto = i.credito > 0 ? i.credito : (i.debito > 0 ? -i.debito : 0);
@@ -1972,7 +2061,8 @@ document.addEventListener("DOMContentLoaded", () => {
             container.innerHTML = "";
             
             // Leer estado del filtro
-            const filterVal = clientStatusFilter ? clientStatusFilter.value : "todos";
+            const filterVal = document.getElementById("master-filter-status")?.value || "all";
+            const typeFilterVal = document.getElementById("master-filter-type")?.value || "all";
             
             // Filtrar clientes
             let filtered = data;
@@ -1982,11 +2072,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 filtered = filtered.filter(c => c.estado_filtro === "problemas");
             }
             
+            if (typeFilterVal !== "all") {
+                filtered = filtered.filter(c => c.tipo_cliente === typeFilterVal);
+            }
+            
             // Actualizar contadores en el pie
-            const lblTotal = document.getElementById("lbl-clientes-total");
-            const lblFiltrados = document.getElementById("lbl-clientes-filtrados");
-            if (lblTotal) lblTotal.textContent = data.length;
-            if (lblFiltrados) lblFiltrados.textContent = filtered.length;
+            const lblTotal = document.getElementById("master-total-count");
+            if (lblTotal) lblTotal.textContent = `Mostrando ${filtered.length} de ${data.length} clientes`;
             
             if (filtered.length > 0) {
                 filtered.forEach(c => {
@@ -1994,34 +2086,26 @@ document.addEventListener("DOMContentLoaded", () => {
                     const isSelected = c.cuit_hash === selectedClienteHash;
                     card.className = isSelected ? "selected-button-wrapper" : "normal-button-wrapper";
                     
-                    // Categorías compactas
-                    let tagLabel = "AFIP";
-                    let tagClass = "green";
-                    if (c.categoria) {
-                        const catLower = c.categoria.toLowerCase();
-                        if (catLower.includes("banco")) {
-                            tagLabel = "Banco";
-                            tagClass = "orange";
-                        }
-                    }
+                    let tagLabel = c.tipo_cliente === "OS" ? "Obra Social" : "Particular";
+                    let tagClass = c.tipo_cliente === "OS" ? "blue" : "orange";
                     
-                    let tooltipText = tagLabel === "Banco" 
-                        ? "Clientes identificados a partir de depósitos en extractos bancarios."
-                        : "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
+                    let tooltipText = c.tipo_cliente === "OS"
+                        ? "Entidad Jurídica u Obra Social."
+                        : "Paciente Particular (Facturación Directa).";
 
                     const btn = document.createElement("button");
                     btn.innerHTML = `
                         <div class="client-card-layout">
                             <div class="client-card-title">👤 ${c.nombre}</div>
                             <div class="client-card-cuit">CUIT: ${c.cuit}</div>
-                            <span class="status-chip ${tagClass} client-card-status" onmouseenter="showTooltip(event, '${tooltipText}')" onmouseleave="hideTooltip()">${tagLabel}</span>
+                            <span class="status-chip ${tagClass} client-card-status" onmouseenter="window.showTooltip(event, '${tooltipText}')" onmouseleave="window.hideTooltip()">${tagLabel}</span>
                         </div>
                     `;
                     
                     btn.addEventListener("click", () => {
                         selectedClienteHash = c.cuit_hash;
                         loadClientes(query); // Refrescar selección en maestro
-                        showClienteFicha(c.cuit_hash, c.nombre, c.categoria || "Obra Social", c.cuit);
+                        showClienteFicha(c.cuit_hash, c.nombre, c.categoria || "Obra Social", c.cuit, c.tipo_cliente);
                     });
                     
                     card.appendChild(btn);
@@ -2033,7 +2117,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { console.error(e); }
     }
 
-    async function showClienteFicha(cuitHash, nombre, categoria, cuitReal) {
+    async function showClienteFicha(cuitHash, nombre, categoria, cuitReal, tipoCliente) {
         try {
             // Ocultar placeholder y mostrar ficha
             document.getElementById("clientes-placeholder").classList.add("hidden");
@@ -2045,7 +2129,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             document.getElementById("ficha-cliente-nombre").textContent = nombre;
             // Mostrar CUIT real desencriptado en lugar de hash
-            document.getElementById("ficha-cliente-cuit").textContent = `CUIT: ${cuitReal}`;
+            document.getElementById("ficha-cliente-cuit").textContent = `CUIT/DNI: ${cuitReal}`;
             
             // Verificar duplicidades sospechosas en la ficha
             const fDupBanner = document.getElementById("ficha-duplicate-banner");
@@ -2063,20 +2147,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             const catBadge = document.getElementById("ficha-cliente-categoria-badge");
-            let catClass = "blue";
-            let tooltipText = "Clientes cuyas facturas provienen de archivos TXT de AFIP.";
-            const catLower = categoria.toLowerCase();
-            if (catLower.includes("obra social") || catLower.includes("os")) catClass = "green";
-            else if (catLower.includes("prepaga")) catClass = "blue";
-            else if (catLower.includes("particular")) catClass = "orange";
-            else if (catLower.includes("banco")) {
-                catClass = "orange";
-                tooltipText = "Clientes identificados a partir de depósitos en extractos bancarios.";
-            }
+            let catClass = tipoCliente === "OS" ? "blue" : "orange";
+            let catLabel = tipoCliente === "OS" ? "Obra Social" : "Particular";
             catBadge.className = `status-chip ${catClass}`;
-            catBadge.innerHTML = categoria;
-            catBadge.onmouseenter = (e) => showTooltip(e, tooltipText);
-            catBadge.onmouseleave = () => hideTooltip();
+            catBadge.innerHTML = catLabel;
 
             // Calcular montos totales para cada columna
             const totalPrestaciones = data.prestaciones.reduce((sum, p) => sum + p.monto, 0);
@@ -2208,34 +2282,47 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // 1. Renderizar Prestaciones (Vía 1)
-            const listP = document.getElementById("clientes-prestaciones-list");
+            // 1. Renderizar Pacientes / Prestaciones (Vía 1)
+            const listP = document.getElementById("clientes-pacientes-list");
             listP.innerHTML = "";
-            if (data.prestaciones.length > 0) {
-                data.prestaciones.forEach(p => {
-                    let borderCol = "border-info";
-                    if (p.estado_conciliacion === "CONCILIADO") borderCol = "border-success";
-                    else if (p.estado_conciliacion === "PENDIENTE_COBRO") borderCol = "border-warning";
-                    else if (p.estado_conciliacion === "DISCREPANCIA") borderCol = "border-danger";
+            if (data.pacientes && data.pacientes.length > 0) {
+                data.pacientes.forEach(pac => {
+                    const pacWrapper = document.createElement("div");
+                    pacWrapper.className = "paciente-item";
+                    pacWrapper.style.border = "1px solid #e2e8f0";
+                    pacWrapper.style.borderRadius = "8px";
+                    pacWrapper.style.overflow = "hidden";
                     
-                    const item = document.createElement("div");
-                    item.className = `listview-item ${borderCol}`;
-                    
-                    const tooltipText = `<strong>Procedencia:</strong><br>📝 Archivo: ${p.archivo_origen || 'Desconocido'}<br>📍 Fila: ${p.nro_fila || '—'}`;
-                    
-                    item.innerHTML = `
-                        <div class="listview-item-title" title="${p.paciente}">${p.paciente}</div>
-                        <div class="listview-item-details">
-                            <span class="listview-item-date">${formatPeriod(p.periodo)}</span>
-                            <div class="listview-item-right">
-                                <span class="listview-item-amount color-blue">${formatCurrency(p.monto)}</span>
-                                <span class="audit-info-trigger" 
-                                      onmouseenter="showTooltip(event, \`${tooltipText}\`)" 
-                                      onmouseleave="hideTooltip()">i</span>
+                    let htmlPrestaciones = pac.prestaciones.map(p => {
+                        let statusIndicator = "";
+                        if (p.estado_conciliacion === "CONCILIADO") statusIndicator = `<span class="status-chip green">Conciliado</span>`;
+                        else if (p.estado_conciliacion === "DISCREPANCIA") statusIndicator = `<span class="status-chip red">Discrepancia</span>`;
+                        else statusIndicator = `<span class="status-chip warning">Pendiente</span>`;
+                        
+                        return `
+                        <div class="listview-item" style="border-top: 1px solid #e2e8f0; border-radius: 0; margin-bottom: 0;">
+                            <div class="listview-item-title">${p.fecha_factura} - ${p.periodo}</div>
+                            <div class="listview-item-details">
+                                <span class="listview-item-date">Factura Nº ${p.factura_nro || "S/N"}</span>
+                                ${statusIndicator}
+                                <div class="listview-item-right">
+                                    <span class="listview-item-amount font-mono color-primary">${formatCurrency(p.monto)}</span>
+                                </div>
                             </div>
                         </div>
+                        `;
+                    }).join("");
+
+                    pacWrapper.innerHTML = `
+                        <div style="background: var(--bg-secondary); padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+                            <span><span style="opacity:0.6; margin-right:5px;">👤</span> ${pac.paciente}</span>
+                            <span class="font-mono">${formatCurrency(pac.total_monto)}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column;">
+                            ${htmlPrestaciones}
+                        </div>
                     `;
-                    listP.appendChild(item);
+                    listP.appendChild(pacWrapper);
                 });
             } else {
                 listP.innerHTML = `<div class="list-empty-state">Sin prestaciones registradas</div>`;
