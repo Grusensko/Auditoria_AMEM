@@ -116,7 +116,7 @@ def get_periods():
         SELECT DISTINCT mes_auditoria FROM movimientos_banco
         ORDER BY mes_auditoria DESC
     """)
-    periods = [row['mes_auditoria'] for row in cursor.fetchall() if row['mes_auditoria']]
+    periods = [row['mes_auditoria'] for row in cursor.fetchall() if row['mes_auditoria'] and row['mes_auditoria'] >= '2026-01']
     conn.close()
     
     if not periods:
