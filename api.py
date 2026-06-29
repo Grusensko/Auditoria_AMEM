@@ -213,6 +213,22 @@ def get_dashboard(periodo: str):
     }
 
 
+@app.get("/api/dashboard/sin_identificar")
+def get_dashboard_sin_identificar(periodo: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, fecha, concepto, detalle, credito AS monto, archivo_origen, nro_fila
+        FROM movimientos_banco
+        WHERE mes_auditoria = ? AND credito > 0
+          AND id NOT IN (SELECT DISTINCT movimiento_banco_id FROM conciliaciones WHERE movimiento_banco_id IS NOT NULL)
+        ORDER BY fecha DESC, id DESC
+    """, (periodo,))
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
 @app.get("/api/prestaciones")
 def get_prestaciones(periodo: str):
     conn = get_db_connection()
@@ -674,11 +690,25 @@ def get_clientes(query: Optional[str] = None):
         if tiene_discrepancias or tiene_descalces or deposito_huerfano or tiene_pendientes:
             estado_filtro = "problemas"
             
+        # Lógica tipo_cliente
+        tipo_cliente = "OS"
+        if not cuit or cuit.strip() == "":
+            tipo_cliente = "PARTICULAR"
+        else:
+            c_clean = cuit.replace("-", "").strip()
+            if c_clean.startswith("20") or c_clean.startswith("23") or c_clean.startswith("24") or c_clean.startswith("27"):
+                tipo_cliente = "PARTICULAR"
+            elif len(c_clean) < 11:
+                tipo_cliente = "PARTICULAR"
+            elif c['categoria'] == "Obra Social" or c['categoria'] == "Banco":
+                tipo_cliente = "OS"
+            
         clientes_list.append({
             "cuit_hash": c_hash,
             "cuit": cuit,
             "nombre": nombre,
             "categoria": c['categoria'],
+            "tipo_cliente": tipo_cliente,
             "estado_filtro": estado_filtro,
             "total_prestado": total_prestaciones,
             "total_facturado": total_facturas,
@@ -789,8 +819,26 @@ def get_cliente_ficha(cuit_hash: str, nombre: str):
     
     conn.close()
     
+    # Agrupar prestaciones por paciente
+    pacientes_map = {}
+    for p in prest_asoc:
+        pac = p['paciente']
+        if not pac: pac = "DESCONOCIDO"
+        if pac not in pacientes_map:
+            pacientes_map[pac] = {
+                "paciente": pac,
+                "total_monto": 0.0,
+                "prestaciones": []
+            }
+        pacientes_map[pac]['prestaciones'].append(p)
+        pacientes_map[pac]['total_monto'] += float(p['monto'] or 0.0)
+        
+    pacientes_list = list(pacientes_map.values())
+    pacientes_list.sort(key=lambda x: x['paciente'])
+    
     return {
-        "prestaciones": prest_asoc,
+        "pacientes": pacientes_list,
+        "prestaciones": prest_asoc, # Mantenemos la lista plana por si se necesita
         "facturas": fact_asoc,
         "banco": banco_asoc
     }
@@ -1094,9 +1142,52 @@ def post_descartar_duplicado(req: DescarteRequest):
     finally:
         conn.close()
 
+# -------------------------------------------------------------------
+# DATA LAKE ENDPOINTS
+# -------------------------------------------------------------------
+
+@app.get("/api/data/prestaciones")
+def get_all_prestaciones():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, obra_social_nombre, paciente, fecha_factura, periodo, monto, factura_nro, forma_pago, fecha_pago, estado_conciliacion, mes_auditoria 
+        FROM prestaciones
+        ORDER BY id DESC
+    """)
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+@app.get("/api/data/facturas")
+def get_all_facturas():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT comprobante_id, cuit_txt, fecha_emision, monto_total, tipo_comprobante, estado, mes_auditoria 
+        FROM facturas
+        ORDER BY fecha_emision DESC
+    """)
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+@app.get("/api/data/banco")
+def get_all_banco():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, fecha, hora, concepto, detalle, debito, credito, saldo, cuit_txt_asociado, mes_auditoria, categoria_auditoria, comentario_auditoria 
+        FROM movimientos_banco
+        ORDER BY fecha DESC
+    """)
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
 
 # Serve index.html SPA
 @app.get("/")
+
 def read_root():
     index_path = "templates/index.html"
     if os.path.exists(index_path):

@@ -259,13 +259,12 @@ def load_excel_prestaciones(excel_path: str, mes_auditoria: str) -> int:
         
         # Validar si el periodo es razonable (un mes o combinación de meses)
         meses_validos = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SETIEMBRE", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]
-        es_mes_valido = False
+        meses_encontrados = []
         for m in meses_validos:
             if m in periodo_raw.upper():
-                es_mes_valido = True
-                break
+                meses_encontrados.append(m)
                 
-        periodo = periodo_raw if es_mes_valido else ""
+        periodo = " / ".join(meses_encontrados) if meses_encontrados else ""
         if not periodo or periodo_raw.lower() in ['nan', 'none']:
             # Deducir del mes de la fecha de prestación
             deduced = ""

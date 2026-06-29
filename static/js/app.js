@@ -794,21 +794,44 @@ document.addEventListener("DOMContentLoaded", () => {
         const upper = osName.toUpperCase().trim();
         for (const [key, cuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
             if (upper.includes(key)) {
-                return `${osName} <span style="display:inline-block; margin-left:6px; padding:2px 4px; background:#e2e8f0; border-radius:4px; font-size:9px; color:#475569;">CUIT: ${cuit}</span>`;
+                return `${osName} <span style="display:inline-block; margin-left:6px; padding:2px 5px; background:#e2e8f0; border-radius:4px; font-size:11px; color:#0f172a; font-weight:600;">CUIT: ${cuit}</span>`;
             }
         }
         return osName;
     }
 
+    function enrichCuitWithOS(cuit) {
+        if (!cuit) return cuit;
+        const cleanCuit = String(cuit).replace(/[^0-9]/g, '').trim();
+        for (const [os, mappedCuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
+            if (cleanCuit === mappedCuit) {
+                return `${cuit} <span style="display:inline-block; margin-left:6px; padding:2px 5px; background:var(--color-blue-light); border-radius:4px; font-size:11px; color:var(--color-blue); font-weight:600;">${os}</span>`;
+            }
+        }
+        return cuit;
+    }
+
+    function enrichTextWithOS(text) {
+        if (!text) return text;
+        let result = String(text);
+        for (const [os, cuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
+            if (result.includes(cuit) && !result.includes(os)) {
+                result = result.replace(cuit, `${cuit} <span style="display:inline-block; padding:2px 5px; background:var(--color-blue-light); border-radius:4px; font-size:11px; color:var(--color-blue); font-weight:600;">${os}</span>`);
+            }
+        }
+        return result;
+    }
+
     function renderCellWithActions(content, gridId, enrichFn = null) {
-        if (!content) return "";
-        const rawContent = String(content).replace(/"/g, '&quot;');
-        const displayContent = enrichFn ? enrichFn(content) : rawContent;
+        if (!content && content !== 0) return "";
+        const trimmedContent = String(content).trim();
+        const rawContent = trimmedContent.replace(/"/g, '&quot;');
+        const displayContent = enrichFn ? enrichFn(trimmedContent) : rawContent;
         
         return gridjs.html(`
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; height:100%;">
-                <span>${displayContent}</span>
-                <div class="cell-actions-container">
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; height:100%; min-width:0; gap:8px;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${displayContent}</span>
+                <div class="cell-actions-container" style="flex-shrink:0;">
                     <button class="cell-action-btn copy-btn" title="Copiar" onclick="navigator.clipboard.writeText('${rawContent}'); window.showTooltip(event, '¡Copiado!')">📋</button>
                     <button class="cell-action-btn search-btn" title="Filtrar por este valor" onclick="window.triggerGridSearch('${gridId}', '${rawContent}')">🔍</button>
                 </div>
@@ -821,9 +844,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if(!gridWrapper) return;
         const searchInput = gridWrapper.querySelector('input[type="search"]');
         if(searchInput) {
-            // Seteamos el valor usando native setter para que dispare eventos React/Preact (GridJS usa Preact)
+            // Limpiar $, espacios de no-rompimiento (NBSP, narrow NBSP) y espacios normales
+            let cleaned = val.replace(/[\$\u00A0\u202F\s]/g, '').trim();
             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-            nativeInputValueSetter.call(searchInput, val);
+            nativeInputValueSetter.call(searchInput, cleaned);
             searchInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
     };
@@ -870,15 +894,15 @@ document.addEventListener("DOMContentLoaded", () => {
         
         gridPrestacionesInstance = new gridjs.Grid({
             columns: [
-                { name: "ID", width: '60px' },
+                { name: "ID", width: '80px', formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
                 { name: "Obra Social", formatter: (c) => renderCellWithActions(c, "grid-prestaciones", enrichWithCuit) },
                 { name: "Paciente", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
                 { name: "Fecha Fact.", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
-                { name: "Periodo" },
-                { name: "Monto" },
+                { name: "Periodo", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
+                { name: "Monto", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
                 { name: "Fact. Nro", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
-                { name: "Estado" },
-                { name: "Mes Aud." }
+                { name: "Estado", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") },
+                { name: "Mes Aud.", formatter: (c) => renderCellWithActions(c, "grid-prestaciones") }
             ],
             data: data.map(i => [i.id, i.obra_social_nombre, i.paciente, i.fecha_factura, i.periodo, formatCurrency(i.monto), i.factura_nro, i.estado_conciliacion, i.mes_auditoria]),
             search: true,
@@ -917,13 +941,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("grid-facturas");
         gridFacturasInstance = new gridjs.Grid({
             columns: [
-                { name: "Comprobante ID" },
-                { name: "CUIT Rel.", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Comprobante ID", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "CUIT Rel.", formatter: (c) => renderCellWithActions(c, "grid-facturas", enrichCuitWithOS) },
                 { name: "Fecha Emisión", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
-                { name: "Monto Total" },
-                { name: "Tipo Comp." },
-                { name: "Estado" },
-                { name: "Mes Aud." }
+                { name: "Monto Total", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Tipo Comp.", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Estado", formatter: (c) => renderCellWithActions(c, "grid-facturas") },
+                { name: "Mes Aud.", formatter: (c) => renderCellWithActions(c, "grid-facturas") }
             ],
             data: data.map(i => [i.comprobante_id, i.cuit_txt, i.fecha_emision, formatCurrency(i.monto_total), i.tipo_comprobante, i.estado, i.mes_auditoria]),
             search: true,
@@ -961,13 +985,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("grid-banco");
         gridBancoInstance = new gridjs.Grid({
             columns: [
-                { name: "ID", width: '60px' },
+                { name: "ID", width: '80px', formatter: (c) => renderCellWithActions(c, "grid-banco") },
                 { name: "Fecha", formatter: (c) => renderCellWithActions(c, "grid-banco") },
-                { name: "Concepto" },
-                { name: "Detalle", formatter: (c) => renderCellWithActions(c, "grid-banco") },
-                { name: "Monto Neto" },
-                { name: "Saldo" },
-                { name: "Mes Aud." }
+                { name: "Concepto", formatter: (c) => renderCellWithActions(c, "grid-banco", enrichTextWithOS) },
+                { name: "Detalle", formatter: (c) => renderCellWithActions(c, "grid-banco", enrichTextWithOS) },
+                { name: "Monto Neto", formatter: (c) => renderCellWithActions(c, "grid-banco") },
+                { name: "Saldo", formatter: (c) => renderCellWithActions(c, "grid-banco") },
+                { name: "Mes Aud.", formatter: (c) => renderCellWithActions(c, "grid-banco") }
             ],
             data: data.map(i => {
                 const monto = i.credito > 0 ? i.credito : (i.debito > 0 ? -i.debito : 0);
@@ -2413,6 +2437,64 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedClienteHash = null;
         loadClientes(clientSearchInp.value.trim()); // Refrescar maestro para quitar selección
     });
+
+    // --- MODAL DE INGRESOS SIN IDENTIFICAR ---
+    const kpiCardSinId = document.getElementById("kpi-card-sin-id");
+    const modalSinId = document.getElementById("sin-identificar-modal");
+    
+    if (kpiCardSinId && modalSinId) {
+        kpiCardSinId.addEventListener("click", async () => {
+            document.getElementById("lbl-sin-id-periodo").textContent = formatPeriod(currentPeriod) || currentPeriod;
+            const tbody = document.getElementById("tbl-sin-id-body");
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-secondary);">Cargando depósitos sin identificar...</td></tr>`;
+            modalSinId.classList.remove("hidden");
+            
+            try {
+                const res = await fetch(`/api/dashboard/sin_identificar?periodo=${currentPeriod}`);
+                const data = await res.json();
+                
+                tbody.innerHTML = "";
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-secondary);">No hay cobros sin asociar en este período. 🎉</td></tr>`;
+                } else {
+                    data.forEach(item => {
+                        const tr = document.createElement("tr");
+                        tr.style.borderBottom = "1px solid var(--border-color)";
+                        
+                        const tooltipText = `<strong>Procedencia:</strong><br>🏦 Archivo: ${item.archivo_origen || 'Desconocido'}<br>📍 Fila: ${item.nro_fila || '—'}`;
+                        
+                        tr.innerHTML = `
+                            <td style="padding: 10px 15px;">${item.fecha}</td>
+                            <td style="padding: 10px 15px; font-weight: 500;">${item.concepto}</td>
+                            <td style="padding: 10px 15px; color: var(--text-secondary);">${item.detalle || '—'}</td>
+                            <td style="padding: 10px 15px; font-weight: 600; text-align: right; color: var(--color-green);">${formatCurrency(item.monto)}</td>
+                            <td style="padding: 10px 15px; text-align: center;">
+                                <span class="audit-info-trigger" 
+                                      onmouseenter="window.showTooltip(event, \`${tooltipText}\`)" 
+                                      onmouseleave="window.hideTooltip()">i</span>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--color-red);">Error al cargar los datos.</td></tr>`;
+            }
+        });
+        
+        // Cierre del modal
+        const btnClose1 = document.getElementById("btn-close-sin-id");
+        const btnClose2 = document.getElementById("btn-close-sin-id-ok");
+        
+        [btnClose1, btnClose2].forEach(btn => {
+            if (btn) {
+                btn.addEventListener("click", () => {
+                    modalSinId.classList.add("hidden");
+                });
+            }
+        });
+    }
 
     // --- CONTROLADOR DE FUSIÓN Y UNIFICACIÓN DE CLIENTES ---
     const btnFichaUnificar = document.getElementById("btn-ficha-unificar-cuit");

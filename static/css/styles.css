@@ -311,6 +311,15 @@ button {
     font-weight: 600;
 }
 
+.sidebar-divider {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    padding: 22px 16px 8px 16px;
+    text-transform: uppercase;
+}
+
 .sidebar-footer {
     padding: 16px;
     border-top: 1px solid var(--border-color);
@@ -1908,6 +1917,16 @@ button {
     grid-template-rows: auto 1fr;
     gap: 15px;
     overflow: hidden;
+    padding-bottom: 20px; /* Margen para respirar en la base */
+    min-width: 0; /* Previene desbordes en grid layouts */
+}
+
+#view-data-prestaciones .view-header,
+#view-data-facturas .view-header,
+#view-data-banco .view-header {
+    z-index: 50; /* Superponer al thead sticky de GridJS */
+    position: relative;
+    margin-bottom: 0;
 }
 
 #view-data-prestaciones .view-card,
@@ -1916,16 +1935,21 @@ button {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 0; /* Importantísimo para el scroll anidado en flex/grid */
+    min-height: 0; /* Importantísimo para el scroll anidado */
+    min-width: 0;
     margin: 0;
+    overflow: hidden;
 }
 
 .datalake-grid {
     flex: 1;
     min-height: 0;
+    min-width: 0;
     font-family: 'Inter', sans-serif;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 100%;
 }
 
 .gridjs-wrapper {
@@ -1934,6 +1958,9 @@ button {
     border: 1px solid var(--border-color);
     flex: 1;
     min-height: 0; /* Permite el scroll interno en tbody que gridjs inyecta con fixedHeader */
+    overflow-x: auto !important;
+    max-width: 100%;
+    width: 100%;
 }
 
 .gridjs-td, .gridjs-th {
@@ -1942,13 +1969,53 @@ button {
 }
 
 .gridjs-th {
-    background-color: var(--color-bg-light) !important;
+    background-color: var(--bg-secondary) !important; /* Fondo blanco de las variables */
     color: var(--text-primary) !important;
     font-weight: 600 !important;
+    z-index: 10 !important; /* Menor que la vista superior */
 }
 
 .gridjs-td {
     color: var(--text-secondary);
+    position: relative; /* Para alojar los botones flotantes */
+}
+
+/* Acciones Hover en Celdas de Grid.js */
+.cell-action-btn {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gridjs-td:hover .cell-actions-container .cell-action-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cell-action-btn:hover {
+    background: var(--bg-primary);
+    transform: scale(1.1);
+}
+
+.cell-actions-container {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+    background: linear-gradient(90deg, transparent, #fff 15px); /* Degradado suave */
+    padding-left: 20px;
 }
 
 /* Fix para inputs de búsqueda y selectores en header del Datalake */

@@ -8,10 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <!-- Grid.js CDN (Tablas Data Lake) -->
+    <link href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+    
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Estilos CSS -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=2.5">
+    <link rel="stylesheet" href="/static/css/styles.css?v=2.7">
 </head>
 <body>
 
@@ -66,6 +70,20 @@
                 <button class="menu-item" data-target="view-reportes">
                     <span class="menu-icon">📥</span>
                     <span class="menu-text">Exportar</span>
+                </button>
+                
+                <div class="sidebar-divider">REGISTROS IMPORTADOS</div>
+                <button class="menu-item" data-target="view-data-prestaciones">
+                    <span class="menu-icon">🗃️</span>
+                    <span class="menu-text">Prestaciones</span>
+                </button>
+                <button class="menu-item" data-target="view-data-facturas">
+                    <span class="menu-icon">🧾</span>
+                    <span class="menu-text">Facturas AFIP</span>
+                </button>
+                <button class="menu-item" data-target="view-data-banco">
+                    <span class="menu-icon">🏦</span>
+                    <span class="menu-text">Banco</span>
                 </button>
             </nav>
             <div class="sidebar-footer">
@@ -155,7 +173,7 @@
                         <h2 class="kpi-value color-green" id="kpi-conciliado">$0.00</h2>
                         <span class="kpi-subtitle" id="kpi-cant-conciliado">0 cobros ok (100% exacto)</span>
                     </div>
-                    <div class="kpi-card border-orange">
+                    <div class="kpi-card border-orange" id="kpi-card-sin-id" style="cursor: pointer;">
                         <span class="kpi-title">Ingresos Sin Identificar</span>
                         <h2 class="kpi-value color-orange" id="kpi-sin-id">$0.00</h2>
                         <span class="kpi-subtitle" id="kpi-cant-sin-id">0 cobros en banco sin asociar</span>
@@ -262,16 +280,26 @@
                     
                     <!-- MAESTRO (Lista Izquierda - 28% ancho) -->
                     <div class="layout-master">
-                        <div class="master-search-bar">
-                            <input type="text" id="clientes-search-input" placeholder="🔍 Buscar por CUIT o Nombre...">
-                        </div>
-                        <div class="master-filters" style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); background-color: rgba(0, 0, 0, 0.01);">
-                            <label class="filter-header" style="margin-bottom: 4px;">Estado Contable:</label>
-                            <select id="clientes-status-filter" style="width: 100%; padding: 6px 10px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none;">
-                                <option value="todos">📋 Mostrar Todos</option>
-                                <option value="problemas" selected>⚠️ Con Descuadres / Pendientes</option>
-                                <option value="bien">🟢 En Equilibrio / Conciliados</option>
-                            </select>
+                        <div class="master-search">
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="master-search-input" placeholder="Buscar por CUIT o Razón Social...">
+                            </div>
+                            <div class="master-filters">
+                                <select id="master-filter-status" class="filter-select">
+                                    <option value="all">Estado: Todos</option>
+                                    <option value="bien">En Equilibrio Contable</option>
+                                    <option value="problemas">Requiere Atención</option>
+                                </select>
+                                <select id="master-filter-type" class="filter-select">
+                                    <option value="all">Tipo: Todos</option>
+                                    <option value="OS">Obras Sociales</option>
+                                    <option value="PARTICULAR">Particulares</option>
+                                </select>
+                            </div>
+                            <div class="master-stats">
+                                <span id="master-total-count">Cargando...</span>
+                            </div>
                         </div>
                         <div class="master-list-wrapper" id="clientes-master-list" style="padding: 10px; flex-grow: 1;">
                             <!-- Se carga dinámicamente -->
@@ -331,42 +359,43 @@
                                 </div>
                             </div>
                             
-                            <!-- COLUMNAS DETALLES COMPACTAS (3 columnas) -->
-                            <div class="ficha-grid">
+                            <!-- ESTRUCTURA JERÁRQUICA: PACIENTES, FACTURAS, BANCO -->
+                            <div class="ficha-sections" style="margin-top: 20px; display: flex; flex-direction: column; gap: 20px;">
                                 
-                                <!-- COLUMNA 1: PRESTACIONES -->
-                                <div class="ficha-col">
-                                    <div class="ficha-col-header">
-                                        <h4 class="ficha-col-title">Prestaciones (Vía 1)</h4>
+                                <!-- SECCIÓN: PACIENTES Y PRESTACIONES -->
+                                <div class="ficha-section">
+                                    <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
+                                        <h4 class="ficha-col-title" style="font-size: 15px;">Pacientes y Prestaciones (Vía 1)</h4>
                                         <span id="col-prest-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
-                                    <div class="listview-compact" id="clientes-prestaciones-list">
-                                        <!-- Se carga dinámicamente -->
+                                    <div id="clientes-pacientes-list" class="pacientes-accordion-list" style="display: flex; flex-direction: column; gap: 10px;">
+                                        <!-- Renderizado por JS -->
                                     </div>
                                 </div>
-                                
-                                <!-- COLUMNA 2: FACTURAS -->
-                                <div class="ficha-col">
-                                    <div class="ficha-col-header">
-                                        <h4 class="ficha-col-title">Facturas AFIP (Vía 2)</h4>
-                                        <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <!-- SECCIÓN: FACTURAS -->
+                                    <div class="ficha-section">
+                                        <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
+                                            <h4 class="ficha-col-title" style="font-size: 15px;">Facturas AFIP (Vía 2)</h4>
+                                            <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
+                                        </div>
+                                        <div class="listview-compact" id="clientes-facturas-list">
+                                            <!-- Se carga dinámicamente -->
+                                        </div>
                                     </div>
-                                    <div class="listview-compact" id="clientes-facturas-list">
-                                        <!-- Se carga dinámicamente -->
+                                    
+                                    <!-- SECCIÓN: BANCO -->
+                                    <div class="ficha-section">
+                                        <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
+                                            <h4 class="ficha-col-title" style="font-size: 15px;">Ingresos Banco (Vía 3)</h4>
+                                            <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
+                                        </div>
+                                        <div class="listview-compact" id="clientes-banco-list">
+                                            <!-- Se carga dinámicamente -->
+                                        </div>
                                     </div>
                                 </div>
-                                
-                                <!-- COLUMNA 3: BANCO -->
-                                <div class="ficha-col">
-                                    <div class="ficha-col-header">
-                                        <h4 class="ficha-col-title">Ingresos Banco (Vía 3)</h4>
-                                        <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
-                                    </div>
-                                    <div class="listview-compact" id="clientes-banco-list">
-                                        <!-- Se carga dinámicamente -->
-                                    </div>
-                                </div>
-                                
                             </div>
                         </div>
                     </div>
@@ -489,6 +518,55 @@
                 </div>
             </section>
 
+            <!-- SECCIONES REGISTROS IMPORTADOS -->
+            <section id="view-data-prestaciones" class="view-pane">
+                <div class="view-header">
+                    <h2 class="view-title">Base de Datos: Prestaciones <span id="count-prestaciones" style="font-size: 0.95rem; margin-left: 10px; opacity: 0.8; font-weight: 600; color: var(--color-blue);"></span></h2>
+                    <div class="view-filters">
+                        <select id="filter-datalake-prestaciones-mes" class="filter-select">
+                            <option value="ALL">Todos los Meses</option>
+                            <!-- Se llena por JS -->
+                        </select>
+                    </div>
+                </div>
+                <div class="view-card">
+                    <div id="grid-prestaciones" class="datalake-grid"></div>
+                </div>
+            </section>
+
+            <section id="view-data-facturas" class="view-pane">
+                <div class="view-header">
+                    <h2 class="view-title">Base de Datos: Facturas AFIP <span id="count-facturas" style="font-size: 0.95rem; margin-left: 10px; opacity: 0.8; font-weight: 600; color: var(--color-blue);"></span></h2>
+                    <div class="view-filters">
+                        <select id="filter-datalake-facturas-mes" class="filter-select">
+                            <option value="ALL">Todos los Meses</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="view-card">
+                    <div id="grid-facturas" class="datalake-grid"></div>
+                </div>
+            </section>
+
+            <section id="view-data-banco" class="view-pane">
+                <div class="view-header">
+                    <h2 class="view-title">Base de Datos: Banco <span id="count-banco" style="font-size: 0.95rem; margin-left: 10px; opacity: 0.8; font-weight: 600; color: var(--color-blue);"></span></h2>
+                    <div class="view-filters" style="display: flex; gap: 10px;">
+                        <select id="filter-datalake-banco-tipo" class="filter-select">
+                            <option value="ALL">Todos (Ingresos/Egresos)</option>
+                            <option value="INGRESOS">Solo Ingresos (Créditos)</option>
+                            <option value="EGRESOS">Solo Egresos (Débitos)</option>
+                        </select>
+                        <select id="filter-datalake-banco-mes" class="filter-select">
+                            <option value="ALL">Todos los Meses</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="view-card">
+                    <div id="grid-banco" class="datalake-grid"></div>
+                </div>
+            </section>
+
         </main>
     </div>
 
@@ -564,6 +642,41 @@
                     <button id="btn-dismiss-duplicate" class="btn-secondary" style="background-color: var(--color-red-light); color: var(--color-red); border-color: rgba(239,68,68,0.15);">🛡️ No es la misma persona</button>
                 </div>
                 <button id="btn-cancel-fusion" class="btn-secondary">Confirmo luego</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE COBROS SIN IDENTIFICAR -->
+    <div id="sin-identificar-modal" class="modal-backdrop hidden">
+        <div class="modal-card" style="max-width: 800px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; flex-shrink: 0;">
+                <h3 style="margin: 0; font-size: 1.35rem;">🏦 Ingresos Sin Identificar en Banco</h3>
+                <button id="btn-close-sin-id" style="font-size: 20px; line-height: 1; color: var(--text-secondary); background: none; border: none;">&times;</button>
+            </div>
+            
+            <p style="font-size: 13.5px; opacity: 0.8; margin-bottom: 15px; flex-shrink: 0;">
+                Listado de depósitos acreditados en el Banco Supervielle para el período seleccionado <strong id="lbl-sin-id-periodo"></strong> que aún no han sido conciliados con ninguna prestación o factura.
+            </p>
+            
+            <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: #fafafa;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
+                    <thead style="position: sticky; top: 0; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.05); z-index: 5;">
+                        <tr>
+                            <th style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); font-weight: 600;">Fecha</th>
+                            <th style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); font-weight: 600;">Concepto</th>
+                            <th style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); font-weight: 600;">Detalle</th>
+                            <th style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); font-weight: 600; text-align: right;">Importe</th>
+                            <th style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); font-weight: 600; text-align: center;">Info</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbl-sin-id-body">
+                        <!-- Cargar dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; flex-shrink: 0;">
+                <button id="btn-close-sin-id-ok" class="btn-primary">Entendido</button>
             </div>
         </div>
     </div>
