@@ -4,22 +4,22 @@ from database import get_db_connection
 
 # Mapeo estático inicial de nombres cortos de Excel a CUITs de Obras Sociales en AFIP
 OS_CUIT_MAP = {
-    'OSPELSYM': '30661876715',
+    'OSPELSYM': '30657325372',
     'OSEP': '30623978164',
     'OSDE': '30546741253',
     'UNION PERSONAL': '30683032227',
     'PREVENCION': '30713045000',
-    'AYE': '30657325372',          # Agua y Energía (OS del Personal de Empleados de Agua y Energía)
-    'MUTUAL AGUA Y ENERGIA': '30657325372',
+    'AYE': '30680620713',          # Agua y Energía (OSJERA)
+    'MUTUAL AGUA Y ENERGIA': '30546101890',
     'OSECAC': '30679232106',
-    'OSPE': '33531576859',         # OSPE
+    'OSPE': '30661876715',         # OSPE (Obra Social de Petroleros)
+    'OSPAV': '33531576859',        # OSPAV (Vitivinícola)
     'PAMI': '30522763922',         # CUIT institucional INSSJP (PAMI)
     'IOSFA': '30714906948',        # Instituto de Obra Social de las FF.AA.
     'CIMESA': '30533836808',       # Círculo Médico de Mendoza (relacionado con CIMESA)
     'TV SALUD': '30516748385',
     'OSPRERA': '30547339416',
-    'OSPAV': '30677896090',
-    'OPSA': '30661507698',
+    'OSPAV_VITIVINICOLA': '33531576859',
     'INCLUIR': '30715815709',
     'PALERO': '18084418',
     'JALIF': '22392224'

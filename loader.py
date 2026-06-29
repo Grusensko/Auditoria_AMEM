@@ -25,6 +25,14 @@ def clean_factura_nro(fact_nro) -> str:
     if not fact_str or fact_str.lower() in ['nan', 'none']:
         return ""
         
+    # Remover parte decimal si viene de float de Excel (ej: '1227.0' -> '1227')
+    if '.' in fact_str:
+        parts = fact_str.split('.')
+        if len(parts) == 2 and (parts[1] == '0' or parts[1] == ''):
+            fact_str = parts[0]
+        elif fact_str.endswith('.0'):
+            fact_str = fact_str[:-2]
+            
     if '-' in fact_str:
         parts = fact_str.split('-')
         digits = "".join(filter(str.isdigit, parts[-1]))

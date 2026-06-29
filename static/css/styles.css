@@ -673,6 +673,82 @@ button {
     border-color: var(--color-blue);
 }
 
+.master-search {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--bg-card);
+}
+
+.master-search .search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.master-search .search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.master-search .search-box input {
+    width: 100%;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px 10px 36px;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.master-search .search-box input:focus {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.master-search .master-filters {
+    display: flex;
+    gap: 8px;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.master-search .master-filters select {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-secondary);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.master-search .master-filters select:focus {
+    border-color: var(--color-blue);
+}
+
+.master-stats {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+}
+
 .master-filters {
     padding: 10px 15px;
     border-bottom: 1px solid var(--border-color);
@@ -1982,13 +2058,12 @@ button {
 
 /* Acciones Hover en Celdas de Grid.js */
 .cell-action-btn {
-    background: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 4px 6px;
-    font-size: 12px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 2px 4px;
+    font-size: 14px;
     cursor: pointer;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     opacity: 0;
     transition: opacity 0.2s, transform 0.2s;
     pointer-events: none;
@@ -2003,8 +2078,8 @@ button {
 }
 
 .cell-action-btn:hover {
-    background: var(--bg-primary);
-    transform: scale(1.1);
+    background: transparent;
+    transform: scale(1.25);
 }
 
 .cell-actions-container {
@@ -2013,9 +2088,17 @@ button {
     top: 50%;
     transform: translateY(-50%);
     display: flex;
-    gap: 4px;
-    background: linear-gradient(90deg, transparent, #fff 15px); /* Degradado suave */
-    padding-left: 20px;
+    gap: 6px;
+    background: transparent; /* Sin fondos que tapen */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+    z-index: 5;
+}
+
+.gridjs-td:hover .cell-actions-container {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* Fix para inputs de búsqueda y selectores en header del Datalake */

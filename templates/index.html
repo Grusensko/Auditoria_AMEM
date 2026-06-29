@@ -359,8 +359,8 @@
                                 </div>
                             </div>
                             
-                            <!-- ESTRUCTURA JERÁRQUICA: PACIENTES, FACTURAS, BANCO -->
-                            <div class="ficha-sections" style="margin-top: 20px; display: flex; flex-direction: column; gap: 20px;">
+                            <!-- ESTRUCTURA JERÁRQUICA: PACIENTES, FACTURAS, BANCO EN 3 COLUMNAS -->
+                            <div class="ficha-sections" style="margin-top: 20px; display: grid; grid-template-columns: 1.2fr 0.9fr 0.9fr; gap: 15px;">
                                 
                                 <!-- SECCIÓN: PACIENTES Y PRESTACIONES -->
                                 <div class="ficha-section">
@@ -373,27 +373,25 @@
                                     </div>
                                 </div>
 
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                                    <!-- SECCIÓN: FACTURAS -->
-                                    <div class="ficha-section">
-                                        <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
-                                            <h4 class="ficha-col-title" style="font-size: 15px;">Facturas AFIP (Vía 2)</h4>
-                                            <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
-                                        </div>
-                                        <div class="listview-compact" id="clientes-facturas-list">
-                                            <!-- Se carga dinámicamente -->
-                                        </div>
+                                <!-- SECCIÓN: FACTURAS -->
+                                <div class="ficha-section">
+                                    <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
+                                        <h4 class="ficha-col-title" style="font-size: 15px;">Facturas AFIP (Vía 2)</h4>
+                                        <span id="col-fact-monto-total" class="ficha-col-amount font-mono">$0.00</span>
                                     </div>
-                                    
-                                    <!-- SECCIÓN: BANCO -->
-                                    <div class="ficha-section">
-                                        <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
-                                            <h4 class="ficha-col-title" style="font-size: 15px;">Ingresos Banco (Vía 3)</h4>
-                                            <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
-                                        </div>
-                                        <div class="listview-compact" id="clientes-banco-list">
-                                            <!-- Se carga dinámicamente -->
-                                        </div>
+                                    <div class="listview-compact" id="clientes-facturas-list">
+                                        <!-- Se carga dinámicamente -->
+                                    </div>
+                                </div>
+                                
+                                <!-- SECCIÓN: BANCO -->
+                                <div class="ficha-section">
+                                    <div class="ficha-col-header" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 10px;">
+                                        <h4 class="ficha-col-title" style="font-size: 15px;">Ingresos Banco (Vía 3)</h4>
+                                        <span id="col-banco-monto-total" class="ficha-col-amount amount-green font-mono">$0.00</span>
+                                    </div>
+                                    <div class="listview-compact" id="clientes-banco-list">
+                                        <!-- Se carga dinámicamente -->
                                     </div>
                                 </div>
                             </div>

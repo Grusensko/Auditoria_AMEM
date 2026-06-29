@@ -783,10 +783,28 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Diccionario temporal local de Obras Sociales a CUIT (para enriquecimiento crudo visual)
     const LOCAL_OS_CUIT_MAP = {
-        "OSEP": "30623978164", "OSDE": "30512242445", "SANCOR": "30300000000",
-        "OSECAC": "30685871239", "PAMI": "30522763925", "SWISS MEDICAL": "30678138300",
-        "PREVENCION": "30685871239", "GALENO": "30536481747", "OMINT": "30685871239",
-        "OSPE": "30685871239", "OSPELSYM": "30685871239", "PALERO": "30685871239"
+        "OSEP": "30623978164", 
+        "OSDE": "30546741253", 
+        "SANCOR": "30300000000",
+        "OSECAC": "30679232106", 
+        "PAMI": "30522763922", 
+        "SWISS MEDICAL": "30678138300",
+        "PREVENCION": "30713045000", 
+        "GALENO": "30536481747", 
+        "OMINT": "30685871239",
+        "OSPE": "30661876715", 
+        "OSPELSYM": "30657325372", 
+        "PALERO": "18084418",
+        "UNION PERSONAL": "30683032227",
+        "IOSFA": "30714906948",
+        "CIMESA": "30533836808",
+        "AYE": "30680620713",
+        "MUTUAL AGUA Y ENERGIA": "30546101890",
+        "TV SALUD": "30516748385",
+        "OSPRERA": "30547339416",
+        "OSPAV": "33531576859",
+        "INCLUIR": "30715815709",
+        "JALIF": "22392224"
     };
 
     function enrichWithCuit(osName) {
@@ -814,9 +832,22 @@ document.addEventListener("DOMContentLoaded", () => {
     function enrichTextWithOS(text) {
         if (!text) return text;
         let result = String(text);
+        
+        // 1. Si contiene el CUIT, agregar la Obra Social
         for (const [os, cuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
             if (result.includes(cuit) && !result.includes(os)) {
-                result = result.replace(cuit, `${cuit} <span style="display:inline-block; padding:2px 5px; background:var(--color-blue-light); border-radius:4px; font-size:11px; color:var(--color-blue); font-weight:600;">${os}</span>`);
+                const badge = ` <span style="display:inline-block; padding:2px 5px; background:var(--color-blue-light); border-radius:4px; font-size:11px; color:var(--color-blue); font-weight:600;">${os}</span>`;
+                result = result.replace(new RegExp(cuit, 'g'), `${cuit}${badge}`);
+            }
+        }
+        
+        // 2. Si contiene el nombre corto de la obra social (y no tiene ya su CUIT al lado), agregar el CUIT
+        for (const [os, cuit] of Object.entries(LOCAL_OS_CUIT_MAP)) {
+            if (os.length < 3) continue;
+            const regex = new RegExp(`\\b${os}\\b`, 'i');
+            if (regex.test(result) && !result.includes(cuit)) {
+                const badge = ` <span style="display:inline-block; padding:2px 5px; background:#e2e8f0; border-radius:4px; font-size:11px; color:#0f172a; font-weight:600;">CUIT: ${cuit}</span>`;
+                result = result.replace(regex, (match) => `${match}${badge}`);
             }
         }
         return result;
@@ -824,20 +855,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderCellWithActions(content, gridId, enrichFn = null) {
         if (!content && content !== 0) return "";
-        const trimmedContent = String(content).trim();
-        const rawContent = trimmedContent.replace(/"/g, '&quot;');
-        const displayContent = enrichFn ? enrichFn(trimmedContent) : rawContent;
+        const trimmedContent = String(content).trim().replace(/[\r\n]/g, ' ');
+        const escapedContentForAttr = trimmedContent.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const displayContent = enrichFn ? enrichFn(trimmedContent) : trimmedContent;
         
-        return gridjs.html(`
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; height:100%; min-width:0; gap:8px;">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${displayContent}</span>
-                <div class="cell-actions-container" style="flex-shrink:0;">
-                    <button class="cell-action-btn copy-btn" title="Copiar" onclick="navigator.clipboard.writeText('${rawContent}'); window.showTooltip(event, '¡Copiado!')">📋</button>
-                    <button class="cell-action-btn search-btn" title="Filtrar por este valor" onclick="window.triggerGridSearch('${gridId}', '${rawContent}')">🔍</button>
-                </div>
+        return gridjs.html(`<div style="position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0;">
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">${displayContent}</span>
+            <div class="cell-actions-container">
+                <button class="cell-action-btn" title="Copiar valor" onclick="window.copyToClipboard('${escapedContentForAttr}', this)">📋</button>
+                <button class="cell-action-btn" title="Filtrar por esta celda" onclick="window.triggerGridSearch('${gridId}', '${escapedContentForAttr}')">🔍</button>
             </div>
-        `);
+        </div>`);
     }
+
+    window.copyToClipboard = function(text, btnEl) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (window.showTooltip && window.hideTooltip) {
+                const rect = btnEl.getBoundingClientRect();
+                const fakeEvent = {
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.top,
+                    preventDefault: () => {}
+                };
+                window.showTooltip(fakeEvent, "¡Copiado!");
+                setTimeout(() => {
+                    window.hideTooltip();
+                }, 1000);
+            }
+        }).catch(err => {
+            console.error("Error al copiar texto: ", err);
+        });
+    };
 
     window.triggerGridSearch = function(gridId, val) {
         const gridWrapper = document.getElementById(gridId);
